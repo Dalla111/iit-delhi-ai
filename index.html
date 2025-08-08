@@ -86,10 +86,8 @@
     </div>
     
     <script>
-        // Mobile viewport height fix
         function setAppHeight() {
-            const doc = document.documentElement;
-            doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+            document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
         }
         window.addEventListener('resize', setAppHeight);
         setAppHeight();
@@ -115,16 +113,14 @@
 
         function initializeChat() {
             chatBox.innerHTML = '';
+            chatBox.classList.add('initial-center');
             const welcomeContainer = document.createElement('div');
             welcomeContainer.id = 'welcome-container';
             welcomeContainer.className = 'text-center flex flex-col items-center';
-            
             const welcomeMessage = `<div class="chat-message-wrapper ai justify-center"><div class="chat-avatar avatar-ai">AI</div><div class="chat-bubble ai"><div class="content"><p>Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀</p></div></div></div>`;
             const startButton = `<div class="mt-4"><button id="start-chat-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-indigo-700 transition-all shadow-lg">Let's get started ✨</button></div>`;
-            
             welcomeContainer.innerHTML = welcomeMessage + startButton;
             chatBox.appendChild(welcomeContainer);
-
             document.getElementById('start-chat-btn').addEventListener('click', () => {
                 welcomeContainer.remove();
                 chatBox.classList.remove('initial-center');
@@ -149,9 +145,7 @@
         function addChatMessage(message, sender) {
             const welcomeContainer = document.getElementById('welcome-container');
             if (welcomeContainer) welcomeContainer.remove();
-            if (chatBox.classList.contains('initial-center')) {
-                chatBox.classList.remove('initial-center');
-            }
+            if (chatBox.classList.contains('initial-center')) chatBox.classList.remove('initial-center');
 
             const wrapper = document.createElement('div');
             wrapper.className = `chat-message-wrapper ${sender === 'user' ? 'justify-end' : ''}`;
@@ -167,9 +161,8 @@
             content.innerHTML = marked.parse(message);
             bubble.appendChild(content);
 
-            // Add reply button for AI messages
             if (sender === 'ai') {
-                bubble.dataset.messageText = message; // Store full text for replying
+                bubble.dataset.messageText = message;
                 const replyBtn = document.createElement('div');
                 replyBtn.className = 'reply-btn';
                 replyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
@@ -188,29 +181,30 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
         
-        function showTypingIndicator() {
-            const welcomeContainer = document.getElementById('welcome-container');
-            if (welcomeContainer) welcomeContainer.remove();
-            if (chatBox.classList.contains('initial-center')) chatBox.classList.remove('initial-center');
-
+ const showTypingIndicator = () => {
+            if (chatBox.classList.contains('initial-center')) {
+                chatBox.classList.remove('initial-center');
+                chatBox.innerHTML = '';
+            }
             const wrapper = document.createElement('div');
             wrapper.id = 'typing-indicator-wrapper';
             wrapper.className = 'chat-message-wrapper';
+            
             const avatar = document.createElement('div');
             avatar.className = 'chat-avatar avatar-ai';
             avatar.textContent = 'AI';
+
             const indicator = document.createElement('div');
+            indicator.id = 'typing-bubble';
             indicator.className = 'chat-bubble ai typing-indicator';
             indicator.innerHTML = '<div class="content"><span></span><span></span><span></span></div>';
+            
             wrapper.appendChild(avatar);
             wrapper.appendChild(indicator);
             chatBox.appendChild(wrapper);
             chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function removeTypingIndicator() {
-            document.getElementById('typing-indicator-wrapper')?.remove();
-        }
+        };
+        const removeTypingIndicator = () => { document.getElementById('typing-indicator-wrapper')?.remove(); };
 
         async function handleSend() {
             const userQuery = userInput.value.trim();
@@ -219,15 +213,18 @@
             addChatMessage(userQuery, 'user');
             conversationHistory.push({ role: 'user', text: userQuery });
             userInput.value = '';
-            showTypingIndicator();
             
             const payload = {
                 userQuery,
-                conversationHistory: conversationHistory.slice(-8)
+                conversationHistory: conversationHistory.slice(-8),
+                currentMode,
+                replyingToMessage
             };
+            
+            replyingToMessage = null; // Reset after sending
+            replyContextBar.classList.add('hidden');
 
             const aiResponse = await callBackend(payload);
-            removeTypingIndicator();
             
             addChatMessage(aiResponse, 'ai');
             conversationHistory.push({ role: 'model', text: aiResponse });
@@ -248,7 +245,6 @@
             }
         }
 
-        // --- Main Execution & Event Listeners ---
         initializeChat();
         sendBtn.addEventListener('click', handleSend);
         userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
@@ -273,17 +269,6 @@
                 userInput.focus();
             }
         });
-        
-        chatBox.addEventListener('dblclick', (e) => {
-            const bubble = e.target.closest('.chat-bubble.ai');
-            if (bubble) {
-                replyingToMessage = { text: bubble.dataset.messageText };
-                replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
-                replyContextBar.classList.remove('hidden');
-                userInput.focus();
-            }
-        });
-
     </script>
 </body>
 </html>
