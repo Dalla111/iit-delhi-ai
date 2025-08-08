@@ -19,8 +19,13 @@ async function getFirestoreInstance(config, name) {
     };
 }
 
-async function callGemini(prompt, apiKey, isJson = false) {
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+async function callGemini(prompt, apiKey, isJson = false) {// This is the CORRECT line
+
+
+
+
+    
+const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
     const payload = { contents: [{ parts: [{ text: prompt }] }] };
     if (isJson) {
         payload.generationConfig = { responseMimeType: "application/json" };
@@ -102,4 +107,5 @@ export async function onRequest(context) {
         });
     }
 }
+
 
