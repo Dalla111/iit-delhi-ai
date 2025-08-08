@@ -280,6 +280,7 @@
         let generalDb, studentDb;
         let conversationHistory = [], replyingToMessage = null;
         let currentMode = 'general';
+        const apiCache = new Map();
         let localKnowledgeBase = [];
 
         const chatContainer = document.getElementById('chat-container');
@@ -435,6 +436,20 @@ async function callGemini(prompt, isJson = false) {
         };
         
         const getAiResponse = async (userQuery) => {
+            const cacheKey = `${currentMode}_${userQuery.toLowerCase().trim()}`;
+            if (apiCache.has(cacheKey)) {
+                console.log("Serving response from cache! ⚡");
+                const cachedResponse = apiCache.get(cacheKey);
+                removeTypingIndicator();
+                addChatMessage(cachedResponse, 'ai');
+                conversationHistory.push({role: 'ai', text: cachedResponse});
+        
+                // Re-enable buttons and input
+                sendBtn.disabled = false;
+                userInput.disabled = false;
+                userInput.focus();
+                return; // Important: exit the function
+            }
             sendBtn.disabled = true;
             userInput.disabled = true;
             showTypingIndicator();
@@ -693,4 +708,5 @@ async function main() {
 </body>
 
 </html>
+
 
