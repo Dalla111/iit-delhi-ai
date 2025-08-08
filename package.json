@@ -2,7 +2,9 @@
   "name": "iit-delhi-ai",
   "version": "1.0.0",
   "scripts": {
-    "build": "npx tailwindcss -i ./src/tailwind.css -o ./public/tailwind.css --minify"
+    "build": "npx tailwindcss -i ./src/tailwind.css -o ./public/tailwind.css --minify",
+    "inject-env": "node build.js",
+    "build-all": "npm run build && npm run inject-env"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.3"
