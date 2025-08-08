@@ -8,39 +8,114 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        html, body { height: 100%; overflow: hidden; }
-        body { font-family: 'Inter', sans-serif; background-color: #131314; color: #e3e3e3; }
-        #app-container { height: 100vh; height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; }
-        header { background-color: #131314; border-bottom: 1px solid #333; }
+        /* Base styles for a dark, Gemini-like theme */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #131314;
+            color: #e3e3e3;
+        }
+        
+        /* Switched to CSS Grid for robust full-page layout */
+        #app-container {
+            height: 100vh; /* Fallback for browsers that don't support dvh */
+            height: 100dvh; /* Dynamic viewport height, solves mobile keyboard issue */
+            display: grid;
+            grid-template-rows: auto 1fr auto; /* Header, Main (stretches), Footer */
+        }
+        
+        /* Header styling */
+        header {
+            background-color: #131314;
+            border-bottom: 1px solid #333;
+        }
         #fun-fact-btn {
             background: linear-gradient(90deg, #89b3f8, #9a89f7, #d783f5);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text; text-fill-color: transparent;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
         }
-        #chat-container { overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
-        #chat-box { width: 100%; max-width: 48rem; margin: 0 auto; padding: 0 1rem; }
-        #chat-box.initial-center { margin-top: auto; margin-bottom: auto; }
-        .chat-message-wrapper { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+
+        /* Main chat area styling */
+        #chat-container {
+            overflow-y: auto; /* Only this container will scroll */
+            padding: 1rem 0;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat-box {
+            width: 100%;
+            max-width: 68rem; /* 768px */
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        /* Class to center chat box initially */
+        #chat-box.initial-center {
+            margin-top: auto;
+            margin-bottom: auto;
+        }
+
+        /* Chat bubble styling */
+        .chat-message-wrapper {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
         .chat-avatar {
-            width: 32px; height: 32px; border-radius: 50%; display: flex;
-            align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            flex-shrink: 0;
         }
-        .avatar-user { background-color: #4f46e5; color: white; }
-        .avatar-ai { background: linear-gradient(135deg, #4285f4, #9b72cb); color: white; }
-        .chat-bubble { max-width: 90%; word-wrap: break-word; position: relative; }
-        .chat-bubble .content { padding: 12px 18px; }
-        .chat-bubble.user .content { background-color: transparent; border-radius: 6px 20px 20px 20px; }
-        .chat-bubble.ai .content { background-color: #1e1f20; border-radius: 6px 20px 20px 20px; }
+        .avatar-user {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .avatar-ai {
+            background: linear-gradient(135deg, #4285f4, #9b72cb);
+            color: white;
+        }
+        .chat-bubble {
+            max-width: 90%;
+            word-wrap: break-word;
+            position: relative;
+        }
+        .chat-bubble .content {
+             padding: 12px 18px;
+        }
+        .chat-bubble.user .content {
+            background-color: transparent; /* User bubble is just text */
+        }
+        .chat-bubble.ai .content {
+            background-color: #1e1f20;
+            border-radius: 6px 20px 20px 20px;
+        }
         .chat-bubble.ai p { margin: 0.5em 0; }
         .chat-bubble.ai ul { margin-left: 20px; list-style-type: '👉'; padding-left: 1em; }
         .chat-bubble.ai strong { color: #89b3f8; }
-        .chat-bubble.clarification .content { background-color: #2c2144; border: 1px solid #4f46e5; }
+
+        /* Clarification bubble styling */
+        .chat-bubble.clarification .content {
+            background-color: #2c2144;
+            border: 1px solid #4f46e5;
+        }
         .clarification-btn {
             background-color: #282a2d; border: 1px solid #555; padding: 6px 12px;
             border-radius: 16px; cursor: pointer; transition: all 0.2s ease;
             font-size: 0.875rem; font-weight: 500; color: #e3e3e3;
         }
         .clarification-btn:hover { background-color: #4f46e5; }
+        
+        /* Typing indicator animation */
         .typing-indicator span {
             height: 8px; width: 8px; margin: 0 2px;
             background-color: #9e9e9e; border-radius: 50%;
@@ -49,6 +124,8 @@
         .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
         .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+
+        /* Reply button on hover */
         .reply-btn {
             position: absolute; top: 50%; right: -40px;
             transform: translateY(-50%);
@@ -56,9 +133,26 @@
             padding: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
             cursor: pointer; opacity: 1;
         }
-        footer { background-color: #131314; padding: 0.5rem 1rem 1rem 1rem; }
-        .footer-content { max-width: 48rem; margin: 0 auto; }
-        #mode-selector { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; overflow-x: auto; white-space: nowrap; -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Footer and Input area styling */
+        footer {
+            background-color: #131314;
+            padding: 0.5rem 1rem 1rem 1rem;
+        }
+        .footer-content {
+            max-width: 60rem;
+            margin: 0 auto;
+        }
+        
+        #mode-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            overflow-x: auto;
+            white-space: nowrap;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
         #mode-selector::-webkit-scrollbar { display: none; }
         .mode-btn {
             padding: 6px 16px; border-radius: 9999px; font-weight: 500;
@@ -67,20 +161,29 @@
         }
         .mode-btn:hover { background-color: #3c3d40; }
         .mode-btn.active { background-color: #4f46e5; border-color: #4f46e5; color: white; }
-        #reply-context-bar { background-color: #282a2d; border-left-color: #89b3f8; }
+
+        #reply-context-bar {
+            background-color: #282a2d;
+            border-left-color: #89b3f8;
+        }
+        
         .input-wrapper { position: relative; }
         #user-input {
             width: 100%; border-radius: 28px; background-color: #1e1f20;
             border: 1px solid #444; color: #e3e3e3;
             padding: 14px 56px 14px 20px; font-size: 1rem; transition: border-color 0.2s;
         }
-        #user-input:focus { outline: none; border-color: #89b3f8; box-shadow: none; --tw-ring-shadow: none; }
+        #user-input:focus {
+            outline: none; border-color: #89b3f8;
+            box-shadow: none; --tw-ring-shadow: none;
+        }
         #send-btn {
             position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
             background-color: #4f46e5;
         }
          #send-btn:hover { background-color: #6366f1; }
         #send-btn:disabled { background-color: #3c3d40; cursor: not-allowed; }
+
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
@@ -95,7 +198,7 @@
 
         <main id="chat-container">
             <div id="chat-box" class="flex flex-col space-y-4 initial-center">
-                <div class="chat-message-wrapper">
+                 <div class="chat-message-wrapper">
                     <div class="chat-avatar avatar-ai">AI</div>
                     <div class="chat-bubble ai">
                         <div class="content"><p>Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀</p></div>
@@ -123,7 +226,7 @@
                 <div class="input-wrapper flex items-center space-x-3">
                     <input type="text" id="user-input" placeholder="Message IITD AI...">
                     <button id="send-btn" class="inline-flex items-center justify-center rounded-full h-10 w-10 text-white shadow-sm transition-transform transform hover:scale-105">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.428A1 1 0 009.894 15V4.106A1 1 0 0010.894 2.553z" /></svg>
+                       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
                     </button>
                 </div>
             </div>
@@ -131,7 +234,7 @@
     </div>
     
     <script type="module">
-        // NO MORE FIREBASE LIBRARIES OR API KEYS HERE!
+        // NO MORE FIREBASE OR API KEYS HERE!
         let conversationHistory = [], replyingToMessage = null;
         let currentMode = 'general';
 
@@ -152,7 +255,7 @@
             wrapper.className = 'chat-message-wrapper';
             const avatar = document.createElement('div');
             avatar.className = `chat-avatar ${sender === 'user' ? 'avatar-user' : 'avatar-ai'}`;
-            avatar.textContent = sender === 'user' ? 'You' : 'AI';
+            avatar.textContent = sender === 'user' ? 'U' : 'AI';
             const bubble = document.createElement('div');
             bubble.className = `chat-bubble ${sender}`;
             if (options.type === 'clarification') bubble.classList.add('clarification');
@@ -172,22 +275,7 @@
             if (sender === 'user') { wrapper.style.flexDirection = 'row-reverse'; }
             wrapper.appendChild(avatar);
             wrapper.appendChild(bubble);
-            if (options.actions) {
-                const actionsWrapper = document.createElement('div');
-                actionsWrapper.className = 'flex flex-wrap gap-2 mt-2 pl-12';
-                options.actions.forEach(action => {
-                    const button = document.createElement('button');
-                    button.className = 'clarification-btn';
-                    button.dataset.action = action.action;
-                    button.dataset.query = action.query;
-                    button.innerHTML = action.label;
-                    actionsWrapper.appendChild(button);
-                });
-                chatBox.appendChild(wrapper);
-                chatBox.appendChild(actionsWrapper);
-            } else {
-                 chatBox.appendChild(wrapper);
-            }
+            chatBox.appendChild(wrapper);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         };
         
@@ -238,26 +326,31 @@
 
             const replyContext = replyingToMessage ? replyingToMessage.text : "";
             
-            // This is the ONLY network call the frontend makes.
-            const response = await fetch('/api', { // Calls our secure backend function
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userQuery: userQuery,
-                    mode: currentMode,
-                    replyContext: replyContext,
-                    conversationHistory: conversationHistory.slice(-4)
-                })
-            });
+            try {
+                const response = await fetch('/api', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userQuery: userQuery,
+                        mode: currentMode,
+                        replyContext: replyContext,
+                        conversationHistory: conversationHistory.slice(-4)
+                    })
+                });
 
-            removeTypingIndicator();
-
-            if (!response.ok) {
-                addChatMessage("Sorry, there was an error connecting to the AI. Please try again.", 'ai');
-            } else {
+                removeTypingIndicator();
                 const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "An unknown error occurred.");
+                }
+
                 addChatMessage(data.response, 'ai');
                 conversationHistory.push({role: 'ai', text: data.response});
+
+            } catch (error) {
+                removeTypingIndicator();
+                addChatMessage(`😵 Oops! I hit a snag. The error was: "${error.message}". Please try again!`, 'ai');
             }
 
             replyingToMessage = null;
@@ -283,60 +376,54 @@
             }
         }
 
-        // REPLACE your existing main() function with this correct version
-function main() {
-    // Remove the initial loading spinner
-    document.getElementById('initial-loader')?.remove();
-    
-    // Find the existing button container and button
-    const startButtonContainer = document.getElementById('start-chat-btn-container');
-    const startButton = document.getElementById('start-chat-btn');
+        function main() {
+            const startButton = document.getElementById('start-chat-btn');
+            const startButtonContainer = document.getElementById('start-chat-btn-container');
 
-    // Make the existing button functional
-    if (startButton && startButtonContainer) {
-        startButton.addEventListener('click', () => {
-            if (chatBox.classList.contains('initial-center')) {
-                chatBox.classList.remove('initial-center');
+            if (startButton) {
+                startButton.addEventListener('click', () => {
+                    if (chatBox.classList.contains('initial-center')) {
+                        chatBox.classList.remove('initial-center');
+                    }
+                    if (startButtonContainer) startButtonContainer.remove();
+                    userInput.focus();
+                });
             }
-            startButtonContainer.remove();
-            userInput.focus();
-        });
-    }
+            
+            sendBtn.addEventListener('click', handleSend);
+            userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
+            
+            modeGeneralBtn.addEventListener('click', () => setMode('general'));
+            modeStudentBtn.addEventListener('click', () => setMode('student'));
+            modeFoodBtn.addEventListener('click', () => setMode('food'));
 
-    // --- All other event listeners remain the same ---
-    sendBtn.addEventListener('click', handleSend);
-    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
-    
-    modeGeneralBtn.addEventListener('click', () => setMode('general'));
-    modeStudentBtn.addEventListener('click', () => setMode('student'));
-    modeFoodBtn.addEventListener('click', () => setMode('food'));
+            cancelReplyBtn.addEventListener('click', () => { 
+                replyingToMessage = null;
+                replyContextBar.classList.add('hidden');
+            });
 
-    cancelReplyBtn.addEventListener('click', () => { 
-        replyingToMessage = null;
-        replyContextBar.classList.add('hidden');
-    });
+            funFactBtn.addEventListener('click', async () => { 
+                const startBtn = document.getElementById('start-chat-btn-container');
+                if(startBtn) startBtn.remove();
+                if (chatBox.classList.contains('initial-center')) {
+                    chatBox.classList.remove('initial-center');
+                    chatBox.innerHTML = '';
+                }
+                addChatMessage("Let me check my archives for a fun fact...", 'user');
+                await getAiResponse("Tell me a fun, interesting, or little-known fact about IIT Delhi.");
+            });
 
-    funFactBtn.addEventListener('click', async () => { 
-        const startBtnContainer = document.getElementById('start-chat-btn-container');
-        if(startBtnContainer) startBtnContainer.remove();
-        if (chatBox.classList.contains('initial-center')) {
-            chatBox.classList.remove('initial-center');
-            chatBox.innerHTML = '';
+            chatBox.addEventListener('click', async (e) => { 
+                const replyBtn = e.target.closest('.reply-btn');
+                if (replyBtn) {
+                    const bubble = replyBtn.closest('.chat-bubble');
+                    replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
+                    replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
+                    replyContextBar.classList.remove('hidden');
+                    userInput.focus();
+                }
+            });
         }
-        addChatMessage("Let me check my archives for a fun fact...", 'user');
-        await getAiResponse("Tell me a fun, interesting, or little-known fact about IIT Delhi.");
-    });
-
-    chatBox.addEventListener('dblclick', (e) => {
-        const bubble = e.target.closest('.chat-bubble.ai');
-        if (bubble && bubble.dataset.messageId) {
-            replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
-            replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
-            replyContextBar.classList.remove('hidden');
-            userInput.focus();
-        }
-    });
-}
 
         main();
     </script>
