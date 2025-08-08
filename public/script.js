@@ -2,18 +2,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Declare variables without initialization
-// Get environment variables from Cloudflare with error handling
+// Replace process.env.NODE_ENV checks with this:
+const isProduction = !window.location.hostname.includes('localhost') && 
+                     !window.location.hostname.includes('pages.dev');
 
-// Get environment variables from Cloudflare
-let databasePairs;
+// Updated environment handling
+let databasePairs, geminiApiKey;
 try {
-    // Only log in development
-    if (process.env.NODE_ENV !== 'production') {
+    if (!isProduction) {
         console.log("DATABASE_PAIRS received");
     }
     
     databasePairs = JSON.parse(window.DATABASE_PAIRS);
+    geminiApiKey = window.GEMINI_API_KEY;
 } catch (error) {
     console.error("Configuration error");
     
@@ -416,6 +417,7 @@ async function main() {
 
 
         main();
+
 
 
 
