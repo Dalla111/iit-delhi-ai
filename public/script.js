@@ -3,14 +3,16 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/1
 import { getFirestore, collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Environment variables
+c// Get environment variables from Cloudflare
 const env = {
-    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-    DATABASE_PAIRS: JSON.parse(process.env.DATABASE_PAIRS)
+    GEMINI_API_KEY: window.GEMINI_API_KEY,
+    DATABASE_PAIRS: JSON.parse(window.DATABASE_PAIRS)
 };
 
-// Rest of your JavaScript code
-const databasePairs = env.DATABASE_PAIRS
+// Then use these in your code:
+const databasePairs = env.DATABASE_PAIRS;
 const geminiApiKey = env.GEMINI_API_KEY;
+
 function setAppHeight() {
             const doc = document.documentElement;
             doc.style.setProperty('--app-height', `${window.innerHeight}px`);
@@ -386,5 +388,6 @@ function setAppHeight() {
                 }
             }
         }
+
 
         main();
