@@ -12,8 +12,8 @@ export async function onRequestPost(context) {
             }
         );
         
-        return new Response(await response.text(), {
-            status: response.status,
+        const data = await response.json();
+        return new Response(JSON.stringify(data), {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
