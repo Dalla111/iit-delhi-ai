@@ -2,8 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Environment variables
-
 // Get environment variables from Cloudflare
 const env = {
     GEMINI_API_KEY: window.GEMINI_API_KEY,
@@ -13,6 +11,28 @@ const env = {
 // Then use these in your code:
 const databasePairs = env.DATABASE_PAIRS;
 const geminiApiKey = env.GEMINI_API_KEY;
+// Get environment variables from Cloudflare with error handling
+let databasePairs, geminiApiKey;
+
+try {
+    const env = {
+        GEMINI_API_KEY: window.GEMINI_API_KEY,
+        DATABASE_PAIRS: JSON.parse(window.DATABASE_PAIRS)
+    };
+
+    databasePairs = env.DATABASE_PAIRS;
+    geminiApiKey = env.GEMINI_API_KEY;
+} catch (error) {
+    console.error("Error parsing environment variables:", error);
+    
+    // Fallback to error message in UI
+    document.getElementById('initial-loader').innerHTML = `
+        <p class="text-red-500 font-bold p-4 text-center">
+            Configuration Error: Please check environment variables
+        </p>
+        <p class="text-gray-400 text-center">${error.message}</p>
+    `;
+}
 
 function setAppHeight() {
             const doc = document.documentElement;
@@ -39,6 +59,7 @@ function setAppHeight() {
         const modeGeneralBtn = document.getElementById('mode-general');
         const modeStudentBtn = document.getElementById('mode-student');
         const modeFoodBtn = document.getElementById('mode-food');
+        
 
         async function callGemini(prompt, isJson = false) {
             const apiUrl = `/api/gemini`;
@@ -392,4 +413,5 @@ function setAppHeight() {
 
 
         main();
+
 
