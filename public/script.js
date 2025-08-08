@@ -3,7 +3,8 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/1
 import { getFirestore, collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Environment variables
-c// Get environment variables from Cloudflare
+
+// Get environment variables from Cloudflare
 const env = {
     GEMINI_API_KEY: window.GEMINI_API_KEY,
     DATABASE_PAIRS: JSON.parse(window.DATABASE_PAIRS)
@@ -391,3 +392,4 @@ function setAppHeight() {
 
 
         main();
+
