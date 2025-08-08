@@ -280,7 +280,6 @@
         let generalDb, studentDb;
         let conversationHistory = [], replyingToMessage = null;
         let currentMode = 'general';
-        const apiCache = new Map();
         let localKnowledgeBase = [];
 
         const chatContainer = document.getElementById('chat-container');
@@ -500,21 +499,14 @@ finalPrompt = `You are an expert on all food at IIT Delhi. Your task is to answe
                 }
                 const collectionName = `students_${intent.year}`;
                 const name = intent.name ? intent.name.toLowerCase() : "";
-                // This is the new code that filters on the database
-// Note the use of the "name_lowercase" field we discussed.
-                // This is the old code that downloads everything
-const studentQuery = query(collection(studentDb, collectionName));
-const snapshot = await getDocs(studentQuery);
-const results = [];
-snapshot.forEach(doc => {
-    if (doc.data().name.toLowerCase().includes(name)) {
-        results.push({type: 'Student', ...doc.data()});
-    }
-});
-                
+                const studentQuery = query(collection(studentDb, collectionName));
                 const snapshot = await getDocs(studentQuery);
-                // This is now much more efficient, we just map the results that the DB found.
-                const results = snapshot.docs.map(doc => ({type: 'Student', ...doc.data()}));
+                const results = [];
+                snapshot.forEach(doc => {
+                    if (doc.data().name.toLowerCase().includes(name)) {
+                        results.push({type: 'Student', ...doc.data()});
+                    }
+                });
                 context = results.length > 0 ? JSON.stringify(results) : `No student found with that name in the ${intent.year} directory.`;
                 finalPrompt = `Answer the user's question about a student based ONLY on the provided context. If multiple students are in the context, use the CLARIFY command.
                 **Context:** ${context} --- **User's Question:** "${userQuery}"`;
@@ -697,6 +689,3 @@ async function main() {
 </body>
 
 </html>
-
-
-
