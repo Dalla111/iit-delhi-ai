@@ -198,9 +198,14 @@
 
         <main id="chat-container">
             <div id="chat-box" class="flex flex-col space-y-4 initial-center">
-                 <div id="initial-loader" class="text-center py-10">
-                    <div class="spinner mx-auto border-t-indigo-500" style="width: 40px; height: 40px; border-width: 4px; border-style: solid; border-color: #333; border-top-color: #4f46e5; border-radius: 50%;"></div>
-                    <p class="mt-3 text-gray-400">Connecting to campus network... 📡</p>
+                 <div class="chat-message-wrapper">
+                    <div class="chat-avatar avatar-ai">AI</div>
+                    <div class="chat-bubble ai">
+                        <div class="content"><p>Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀</p></div>
+                    </div>
+                </div>
+                <div id="start-chat-btn-container" class="flex justify-center mt-4">
+                    <button id="start-chat-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-indigo-700 transition-all shadow-lg">Let's get started ✨</button>
                 </div>
             </div>
         </main>
@@ -232,6 +237,7 @@
         // NO MORE FIREBASE OR API KEYS HERE!
         let conversationHistory = [], replyingToMessage = null;
         let currentMode = 'general';
+        let localStudentCache = []; // Cache for clarification clicks
 
         const chatContainer = document.getElementById('chat-container');
         const chatBox = document.getElementById('chat-box');
@@ -270,6 +276,20 @@
             if (sender === 'user') { wrapper.style.flexDirection = 'row-reverse'; }
             wrapper.appendChild(avatar);
             wrapper.appendChild(bubble);
+            
+            if (options.clarificationData) {
+                const actionsWrapper = document.createElement('div');
+                actionsWrapper.className = 'flex flex-wrap gap-2 mt-2 pl-12';
+                options.clarificationData.forEach(student => {
+                    const button = document.createElement('button');
+                    button.className = 'clarification-btn';
+                    button.dataset.entry = student.entryNumber;
+                    button.textContent = student.name;
+                    actionsWrapper.appendChild(button);
+                });
+                wrapper.appendChild(actionsWrapper);
+            }
+            
             chatBox.appendChild(wrapper);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         };
@@ -340,8 +360,16 @@
                     throw new Error(data.error || "An unknown error occurred.");
                 }
 
-                addChatMessage(data.response, 'ai');
-                conversationHistory.push({role: 'ai', text: data.response});
+                if (data.response.startsWith("CLARIFY:")) {
+                    const jsonStr = data.response.substring(8);
+                    const students = JSON.parse(jsonStr);
+                    localStudentCache = students; // Cache for click handler
+                    let clarificationHtml = "I found a few people with that name! 🤔 Which one are you looking for?";
+                    addChatMessage(clarificationHtml, 'ai', {type: 'clarification', clarificationData: students});
+                } else {
+                    addChatMessage(data.response, 'ai');
+                    conversationHistory.push({role: 'ai', text: data.response});
+                }
 
             } catch (error) {
                 removeTypingIndicator();
@@ -372,20 +400,9 @@
         }
 
         function main() {
-            const initialLoader = document.getElementById('initial-loader');
-            if (initialLoader) {
-                initialLoader.remove();
-            }
-            
-            addChatMessage("Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀", 'ai');
-            
-            const startButtonContainer = document.createElement('div');
-            startButtonContainer.id = 'start-chat-btn-container';
-            startButtonContainer.className = 'flex justify-center mt-4';
-            startButtonContainer.innerHTML = `<button id="start-chat-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-indigo-700 transition-all shadow-lg">Let's get started ✨</button>`;
-            chatBox.appendChild(startButtonContainer);
-
             const startButton = document.getElementById('start-chat-btn');
+            const startButtonContainer = document.getElementById('start-chat-btn-container');
+
             if (startButton) {
                 startButton.addEventListener('click', () => {
                     if (chatBox.classList.contains('initial-center')) {
@@ -420,13 +437,22 @@
             });
 
             chatBox.addEventListener('click', async (e) => { 
-                const replyBtn = e.target.closest('.reply-btn');
-                if (replyBtn) {
-                    const bubble = replyBtn.closest('.chat-bubble');
-                    replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
-                    replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
-                    replyContextBar.classList.remove('hidden');
-                    userInput.focus();
+                const target = e.target;
+                if (target.classList.contains('reply-btn') || target.closest('.reply-btn')) {
+                    const bubble = target.closest('.chat-bubble');
+                    if (bubble) {
+                        replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
+                        replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
+                        replyContextBar.classList.remove('hidden');
+                        userInput.focus();
+                    }
+                } else if (target.classList.contains('clarification-btn')) {
+                    const entryNumber = target.dataset.entry;
+                    const student = localStudentCache.find(s => s.entryNumber === entryNumber);
+                    if (student) {
+                        addChatMessage(`Okay, you selected **${student.name}**. What would you like to know?`, 'user');
+                        await getAiResponse(`Tell me about the student with entry number ${entryNumber}`);
+                    }
                 }
             });
         }
