@@ -1,5 +1,5 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getFirestore, collection, getDocs, query, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, query, limit } from "firebase/firestore";
 
 // This is the main handler for your Cloudflare Function.
 // It is the new, secure, server-side version of your 'getAiResponse' function.
@@ -158,3 +158,4 @@ export async function onRequest(context) {
     }
 
 }
+
