@@ -4,25 +4,15 @@ import { getFirestore, collection, getDocs, query, where, limit } from "https://
 
 // Declare variables without initialization
 // Get environment variables from Cloudflare with error handling
+
+// Get environment variables from Cloudflare
 let databasePairs, geminiApiKey;
 
 try {
     console.log("Raw DATABASE_PAIRS:", window.DATABASE_PAIRS);
     
-    // Check if it's already a JavaScript object
-    if (typeof window.DATABASE_PAIRS === 'object') {
-        databasePairs = window.DATABASE_PAIRS;
-    } 
-    // Otherwise try to parse it as JSON
-    else if (typeof window.DATABASE_PAIRS === 'string') {
-        databasePairs = JSON.parse(window.DATABASE_PAIRS);
-    } 
-    // Fallback to using as-is
-    else {
-        console.warn("DATABASE_PAIRS is not a string or object:", window.DATABASE_PAIRS);
-        databasePairs = window.DATABASE_PAIRS;
-    }
-    
+    // Parse the JSON data
+    databasePairs = JSON.parse(window.DATABASE_PAIRS);
     geminiApiKey = window.GEMINI_API_KEY;
     
     console.log("Parsed databasePairs:", databasePairs);
@@ -37,14 +27,15 @@ try {
                 Configuration Error: ${error.message}
             </p>
             <p class="text-gray-400 text-center">Please check environment variables in Cloudflare settings</p>
-            <p class="text-gray-400 text-center">Value type: ${typeof window.DATABASE_PAIRS}</p>
-            <p class="text-gray-400 text-center">Value: ${String(window.DATABASE_PAIRS).substring(0, 100)}</p>
+            <p class="text-gray-400 text-center">Value: ${String(window.DATABASE_PAIRS).substring(0, 200)}</p>
         `;
     }
     
     // Prevent further execution
     throw error;
 }
+
+// Rest of your code remains the same...
 function setAppHeight() {
             const doc = document.documentElement;
             doc.style.setProperty('--app-height', `${window.innerHeight}px`);
@@ -424,6 +415,7 @@ function setAppHeight() {
 
 
         main();
+
 
 
 
