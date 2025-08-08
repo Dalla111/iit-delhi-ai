@@ -1,10 +1,9 @@
-// /functions/api.js - The Final, Most Stable Version
+// /functions/api.js - The Definitive, Fully-Featured Backend
 
-import { initializeApp, getApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 
-// A more robust way to initialize Firebase in a serverless environment
-// This prevents re-initializing the app on every function run
+// A robust function to initialize Firebase in a serverless environment, preventing crashes.
 function initializeFirebaseApp(config, name) {
     const existingApp = getApps().find(app => app.name === name);
     if (existingApp) {
@@ -19,7 +18,7 @@ export async function onRequest(context) {
     }
 
     try {
-        const { userQuery, conversationHistory } = await context.request.json();
+        const { userQuery, conversationHistory, currentMode, replyingToMessage } = await context.request.json();
         const env = context.env;
 
         const callGemini = async (prompt, isJson = false) => {
@@ -36,71 +35,82 @@ export async function onRequest(context) {
         const dbPairs = [ { general: 'A1', student: 'A2' }, { general: 'B1', student: 'B2' }, { general: 'C1', student: 'C2' }, { general: 'D1', student: 'D2' }, { general: 'E1', student: 'E2' }];
         const selectedPair = dbPairs[Math.floor(Math.random() * dbPairs.length)];
         
-        // Use the new, stable initialization function
         const generalApp = initializeFirebaseApp({ apiKey: env[`FIREBASE_API_KEY_${selectedPair.general}`], authDomain: env[`FIREBASE_AUTH_DOMAIN_${selectedPair.general}`], projectId: env[`FIREBASE_PROJECT_ID_${selectedPair.general}`] }, "general");
         const generalDb = getFirestore(generalApp);
 
         const studentApp = initializeFirebaseApp({ apiKey: env[`FIREBASE_API_KEY_${selectedPair.student}`], authDomain: env[`FIREBASE_AUTH_DOMAIN_${selectedPair.student}`], projectId: env[`FIREBASE_PROJECT_ID_${selectedPair.student}`] }, "student");
         const studentDb = getFirestore(studentApp);
 
-        // --- STEP 1: AI PLANNER ---
-        const historyString = conversationHistory.map(turn => `${turn.role}: ${turn.text}`).join('\n');
-        const plannerPrompt = `You are a query planning assistant. Your job is to analyze a user's query and conversation history to determine exactly which Firestore collections to query. Respond ONLY with a valid JSON object containing an array of strings.
-        Available collections: "mess_menus", "campus_shops", "knowledge_base", "clubs_YYYY", "students_YYYY" (where YYYY is a year like 2024, 2025).
-        
-        Examples:
-        - Query: "monil from 2024" -> collections: ["students_2024"]
-        - Query: "dance club head" -> collections: ["clubs_2024", "clubs_2025", "students_2024", "students_2025"]
-        - Query: "paneer roll" -> collections: ["mess_menus", "campus_shops"]
-        - Query: "hi" -> collections: ["knowledge_base"]
-        
-        CONVERSATION HISTORY:
-        ${historyString}
-        
-        USER QUERY: "${userQuery}"
+        // --- Replicating the EXACT logic from your original, working prototype ---
+        let dbContext = "";
+        let finalPrompt = "";
+        let replyContext = replyingToMessage ? `The user is directly replying to your previous message: "${replyingToMessage.text}"\n\n` : "";
 
-        YOUR JSON RESPONSE:`;
+        const intentDetectionPrompt = `Analyze the user's query to determine their primary intent and extract key entities. The intent can be 'find_person', 'find_club_members', 'find_menu_or_shop', or 'general_question'.
+            - For 'find_menu_or_shop', extract 'hostel_name', 'shop_name', 'day', and 'meal'.
+            - For 'find_person', extract 'name' and 'year'.
+            - For 'find_club_members', extract 'club_name' and 'year'.
+            - Recognize abbreviations: 'jwala'->'Jwalamukhi Hostel', 'ccd'->'Cafe Coffee Day', etc.
+            User Query: "${userQuery}"
+            Respond ONLY with a valid JSON object.`;
         
-        let plan = { collections_to_query: [] };
+        let intent = { intent: 'general_question' };
         try {
-            const planJson = await callGemini(plannerPrompt, true);
-            plan = JSON.parse(planJson);
-        } catch (e) {
-            plan = { collections_to_query: ["mess_menus", "campus_shops", "knowledge_base", "clubs_2025", "students_2024", "students_2025"] };
+            const intentJson = await callGemini(intentDetectionPrompt, true);
+            if (intentJson) intent = JSON.parse(intentJson);
+        } catch (e) { console.error("Could not parse intent.", e); }
+
+        // --- Mode-based logic from your prototype ---
+        if (currentMode === 'food' && intent.intent !== 'find_menu_or_shop') { intent.intent = 'find_menu_or_shop'; }
+        if (currentMode === 'student' && intent.intent === 'general_question') { intent.intent = 'find_person'; intent.name = userQuery; }
+        if (currentMode === 'general' && intent.intent !== 'general_question') { intent.intent = 'general_question'; }
+
+        // --- Data fetching logic from your prototype ---
+        if (intent.intent === 'find_menu_or_shop') {
+            const [menuSnapshot, shopSnapshot] = await Promise.all([
+                getDocs(collection(generalDb, "mess_menus")),
+                getDocs(collection(generalDb, "campus_shops"))
+            ]);
+            const menuDocs = menuSnapshot.docs.map(doc => ({type: 'Menu', ...doc.data()}));
+            const shopDocs = shopSnapshot.docs.map(doc => ({type: 'Shop', ...doc.data()}));
+            dbContext = JSON.stringify([...menuDocs, ...shopDocs]);
+            const today = new Date().toLocaleString('en-US', { weekday: 'long', timeZone: 'Asia/Kolkata' });
+            finalPrompt = `You are an expert on all food at IIT Delhi. Answer based ONLY on the provided JSON "Context".
+             - If the user asks about "tonight" or "today", use the provided "Current Day".
+             - Be friendly, use emojis, and list items, prices, and hours clearly.
+            **Current Day:** ${today}
+            **Context:** ${dbContext}
+            ---
+            **User's Question:** "${userQuery}"`;
+
+        } else if (intent.intent === 'find_person') {
+            if (!intent.year) {
+                return new Response(JSON.stringify({ response: "Which entry year are you looking for? e.g., 2024, 2025." }), { headers: { 'Content-Type': 'application/json' } });
+            }
+            const collectionName = `students_${intent.year}`;
+            const name = intent.name ? intent.name.toLowerCase() : "";
+            const studentQuery = collection(studentDb, collectionName);
+            const snapshot = await getDocs(studentQuery);
+            const results = [];
+            snapshot.forEach(doc => {
+                if (doc.data().name.toLowerCase().includes(name)) {
+                    results.push({type: 'Student', ...doc.data()});
+                }
+            });
+            dbContext = results.length > 0 ? JSON.stringify(results) : `No student found with that name in the ${intent.year} directory.`;
+            finalPrompt = `Answer the user's question about a student based ONLY on the provided context. If multiple students are found, use the CLARIFY command: CLARIFY:[{"name":"Student Name 1", "entryNumber":"ID1"}, ...]
+            **Context:** ${dbContext} --- **User's Question:** "${userQuery}"`;
+        
+        } else { // General question or other intents
+            const snapshot = await getDocs(collection(generalDb, "knowledge_base"));
+            const docs = snapshot.docs.map(doc => ({type: 'Knowledge', ...doc.data()}));
+            dbContext = JSON.stringify(docs);
+            finalPrompt = `Answer the user's general question based ONLY on the provided context.
+            **Context:** ${dbContext} --- **User's Question:** "${userQuery}"`;
         }
-
-        // --- STEP 2: TARGETED DATA FETCHING ---
-        const promises = plan.collections_to_query.map(name => {
-            const db = name.startsWith('students_') || name.startsWith('clubs_') ? studentDb : generalDb;
-            return getDocs(collection(db, name)).catch(() => ({ docs: [] }));
-        });
         
-        const snapshots = await Promise.all(promises);
-        const targetedContext = plan.collections_to_query.reduce((acc, name, index) => {
-            acc[name] = snapshots[index].docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            return acc;
-        }, {});
-
-        // --- STEP 3: AI SYNTHESIZER ---
-        const today = new Date().toLocaleString('en-US', { weekday: 'long', timeZone: 'Asia/Kolkata' });
-        const synthesizerPrompt = `You are a witty, helpful, and exceptionally smart IIT Delhi AI assistant. Your personality is polite, friendly, and engaging.
-        Your goal is to provide comprehensive, synthesized answers based ONLY on the provided conversation history and the targeted data.
-        
-        **CRITICAL INSTRUCTIONS:**
-        1.  **Use Conversation History for Context:** If the user provides a year after you asked for one, you MUST connect it to their previous query.
-        2.  **Synthesize, Don't Just List:** If the user asks for "best paneer roll," search all provided menus and present a combined, easy-to-read list.
-        3.  **Formatting:** Use Markdown, bolding, and relevant emojis (like 🌯, 🧑‍🎓, 💡) to make your answers clear and visually appealing.
-        4.  **Current Date:** Today is ${today}. Use this for date-related queries.
-        
-        **CONVERSATION HISTORY:**
-        ${historyString}
-
-        **TARGETED KNOWLEDGE (Your ONLY Source of Truth):**
-        ${JSON.stringify(targetedContext)}
-        ---
-        Based on the history and the targeted knowledge, provide a helpful and smart response to the last user query: "${userQuery}"`;
-        
-        const aiResponse = await callGemini(synthesizerPrompt);
+        const fullPrompt = `${replyContext}${finalPrompt} Your response should be witty, helpful, and use Markdown and emojis.`;
+        const aiResponse = await callGemini(fullPrompt);
 
         return new Response(JSON.stringify({ response: aiResponse }), {
             headers: { 'Content-Type': 'application/json' },
