@@ -177,115 +177,211 @@ function setAppHeight() {
             await getAiResponse(userQuery);
         };
         
-        const getAiResponse = async (userQuery) => {
-            sendBtn.disabled = true;
-            userInput.disabled = true;
-            showTypingIndicator();
+        // Define conversation context at the top level with other variables
+let conversationContext = {
+    currentIntent: null,
+    pendingField: null,
+    collectedData: {}
+};
 
-            let context = "";
-            let replyContext = "";
-            let finalPrompt = "";
+const getAiResponse = async (userQuery) => {
+    sendBtn.disabled = true;
+    userInput.disabled = true;
+    showTypingIndicator();
 
-            if (replyingToMessage) {
-                replyContext = `The user is directly replying to your previous message. Use this as the primary context.\n**Replied-To Message:** "${replyingToMessage.text}"\n\n`;
-            }
+    let context = "";
+    let replyContext = "";
+    let finalPrompt = "";
+    
+    // Handle continuation of existing conversation flow
+    if (conversationContext.currentIntent && conversationContext.pendingField) {
+        // Capture user's response to our follow-up question
+        conversationContext.collectedData[conversationContext.pendingField] = userQuery;
+        conversationContext.pendingField = null;
+        
+        // Update the UI to show we're continuing the conversation
+        replyContextBar.classList.remove('hidden');
+        replyText.textContent = `Continuing: Finding ${conversationContext.collectedData.name || "student"}`;
+        
+        // Reprocess the original intent with complete data
+        userQuery = conversationContext.currentIntent === 'find_person' 
+            ? `Find ${conversationContext.collectedData.name}, ${conversationContext.collectedData.year}`
+            : userQuery;
+    } else {
+        // Reset context for new queries
+        conversationContext = {
+            currentIntent: null,
+            pendingField: null,
+            collectedData: {}
+        };
+    }
 
-            const intentDetectionPrompt = `Analyze the user's query to determine their primary intent and extract key entities. The intent can be 'find_person', 'find_club_members', 'find_menu_or_shop', or 'general_question'.
-                - For 'find_menu_or_shop', extract 'hostel_name', 'shop_name', 'day', and 'meal'.
-                - For 'find_person', extract 'name' and 'year'.
-                - For 'find_club_members', extract 'club_name' and 'year'.
-                - Recognize abbreviations: 'jwala'->'Jwalamukhi Hostel', 'ccd'->'Cafe Coffee Day', etc.
-                User Query: "${userQuery}"
-                Respond ONLY with a valid JSON object.`;
-            
-            let intent = { intent: 'general_question' };
-            try { 
-                const intentJson = await callGemini(intentDetectionPrompt, true);
-                if (intentJson) intent = JSON.parse(intentJson); 
-            } catch(e) { console.error("Could not parse intent.", e); }
+    if (replyingToMessage) {
+        replyContext = `The user is directly replying to your previous message. Use this as the primary context.\n**Replied-To Message:** "${replyingToMessage.text}"\n\n`;
+    }
 
-            if (currentMode === 'food' && intent.intent !== 'find_menu_or_shop') { intent.intent = 'find_menu_or_shop'; }
-            if (currentMode === 'student' && intent.intent === 'general_question') { intent.intent = 'find_person'; intent.name = userQuery; }
-            if (currentMode === 'general' && intent.intent !== 'general_question') { intent.intent = 'general_question'; }
+    const intentDetectionPrompt = `Analyze the user's query to determine their primary intent and extract key entities. The intent can be 'find_person', 'find_club_members', 'find_menu_or_shop', or 'general_question'.
+        - For 'find_menu_or_shop', extract 'hostel_name', 'shop_name', 'day', and 'meal'.
+        - For 'find_person', extract 'name' and 'year'.
+        - For 'find_club_members', extract 'club_name' and 'year'.
+        - Recognize abbreviations: 'jwala'->'Jwalamukhi Hostel', 'ccd'->'Cafe Coffee Day', etc.
+        User Query: "${userQuery}"
+        Respond ONLY with a valid JSON object.`;
+    
+    let intent = { intent: 'general_question' };
+    try { 
+        const intentJson = await callGemini(intentDetectionPrompt, true);
+        if (intentJson) intent = JSON.parse(intentJson); 
+    } catch(e) { 
+        console.error("Could not parse intent.", e);
+        // Fallback to simple intent detection
+        if (userQuery.toLowerCase().includes("find") || userQuery.toLowerCase().includes("search")) {
+            intent.intent = currentMode === 'student' ? 'find_person' : 
+                           currentMode === 'food' ? 'find_menu_or_shop' : 'general_question';
+        }
+    }
 
-            if (intent.intent === 'find_menu_or_shop') {
-                const [menuSnapshot, shopSnapshot] = await Promise.all([
-                    getDocs(collection(generalDb, "mess_menus")),
-                    getDocs(collection(generalDb, "campus_shops"))
-                ]);
-                const menuDocs = menuSnapshot.docs.map(doc => ({type: 'Menu', ...doc.data()}));
-                const shopDocs = shopSnapshot.docs.map(doc => ({type: 'Shop', ...doc.data()}));
-                context = JSON.stringify([...menuDocs, ...shopDocs]);
-                
-                const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                const today = daysOfWeek[new Date().getDay()];
-                finalPrompt = `You are an expert on all food at IIT Delhi (hostel messes and campus shops). Answer the user's question based ONLY on the provided JSON "Context".
-                - Search through all hostel menus and shop menus to find the answer.
-                - If the user asks about "tonight" or "today", use the provided "Current Day".
-                - Be friendly and use emojis. List items, prices, and hours clearly.
-                **Current Day:** ${today}
-                **Context:** ${context}
-                ---
-                **User's Question:** "${userQuery}"`;
+    if (currentMode === 'food' && intent.intent !== 'find_menu_or_shop') { 
+        intent.intent = 'find_menu_or_shop'; 
+    }
+    if (currentMode === 'student' && intent.intent === 'general_question') { 
+        intent.intent = 'find_person'; 
+        if (!intent.name) intent.name = userQuery;
+    }
+    if (currentMode === 'general' && intent.intent !== 'general_question') { 
+        intent.intent = 'general_question'; 
+    }
 
-            } else if (intent.intent === 'find_person') {
-                if (!intent.year) {
-                    addChatMessage("Which entry year are you looking for? e.g., 2024, 2025.", 'ai', {type: 'clarification'});
-                    removeTypingIndicator(); sendBtn.disabled = false; userInput.disabled = false; userInput.focus(); return;
+    // Handle multi-step conversations
+    if (intent.intent === 'find_person') {
+        if (!intent.year && !conversationContext.collectedData.year) {
+            // Set context for follow-up
+            conversationContext = {
+                currentIntent: 'find_person',
+                pendingField: 'year',
+                collectedData: { 
+                    name: intent.name || userQuery,
+                    originalQuery: userQuery
                 }
-                const collectionName = `students_${intent.year}`;
-                const name = intent.name ? intent.name.toLowerCase() : "";
-                const studentQuery = query(collection(studentDb, collectionName));
-                const snapshot = await getDocs(studentQuery);
-                const results = [];
-                snapshot.forEach(doc => {
-                    if (doc.data().name.toLowerCase().includes(name)) {
-                        results.push({type: 'Student', ...doc.data()});
-                    }
-                });
-                context = results.length > 0 ? JSON.stringify(results) : `No student found with that name in the ${intent.year} directory.`;
-                finalPrompt = `Answer the user's question about a student based ONLY on the provided context. If multiple students are in the context, use the CLARIFY command.
-                **Context:** ${context} --- **User's Question:** "${userQuery}"`;
-            } else { 
-                const generalQuery = query(collection(generalDb, "knowledge_base"), limit(50));
-                const snapshot = await getDocs(generalQuery);
-                const docs = snapshot.docs.map(doc => ({type: 'Knowledge', ...doc.data()}));
-                context = JSON.stringify(docs);
-                finalPrompt = `Answer the user's general question based ONLY on the provided context.
-                **Context:** ${context} --- **User's Question:** "${userQuery}"`;
-            }
+            };
             
-            const fullPrompt = `${replyContext}${finalPrompt} Your response should be witty, helpful, and use Markdown and emojis.`;
-            const aiResponse = await callGemini(fullPrompt);
+            // Ask for missing information
+            addChatMessage("Which entry year are you looking for? e.g., 2024, 2025.", 'ai', {type: 'clarification'});
+            
+            // Update UI
+            replyContextBar.classList.remove('hidden');
+            replyText.textContent = `Asking for: Entry year`;
+            
+            // Reset input state
             removeTypingIndicator();
-
-            if (aiResponse && aiResponse.startsWith("CLARIFY:")) {
-                try {
-                    const jsonStr = aiResponse.substring(8);
-                    const students = JSON.parse(jsonStr);
-                    let clarificationHtml = "I found a few people with that name! 🤔 Which one are you looking for?<div class='flex flex-wrap gap-2 mt-2'>";
-                    students.forEach(student => {
-                        clarificationHtml += `<button class="clarification-btn" data-entry="${student.entryNumber}">${student.name}</button>`;
-                    });
-                    clarificationHtml += "</div>";
-                    addChatMessage(clarificationHtml, 'ai', {type: 'clarification'});
-                } catch(e) {
-                    addChatMessage("I found a few people with that name, but had a little trouble listing them out. Could you be more specific?", 'ai');
-                }
-            } else {
-                addChatMessage(aiResponse || "Sorry, I couldn't get a response.", 'ai');
-                conversationHistory.push({role: 'ai', text: aiResponse});
-            }
-
-            if (replyingToMessage) {
-                replyingToMessage = null;
-                replyContextBar.classList.add('hidden');
-            }
-
             sendBtn.disabled = false;
             userInput.disabled = false;
             userInput.focus();
-        };
+            return;
+        }
+        
+        // Use collected data if available
+        const year = intent.year || conversationContext.collectedData.year;
+        const name = intent.name || conversationContext.collectedData.name || userQuery;
+        
+        const collectionName = `students_${year}`;
+        const nameQuery = name.toLowerCase();
+        const studentQuery = query(collection(studentDb, collectionName));
+        const snapshot = await getDocs(studentQuery);
+        const results = [];
+        
+        snapshot.forEach(doc => {
+            const studentName = doc.data().name.toLowerCase();
+            if (studentName.includes(nameQuery)) {
+                results.push({type: 'Student', ...doc.data()});
+            }
+        });
+        
+        context = results.length > 0 
+            ? JSON.stringify(results) 
+            : `No student found with name "${name}" in the ${year} directory.`;
+            
+        finalPrompt = `Answer the user's question about a student based ONLY on the provided context. 
+            If multiple students are in the context, use the CLARIFY command.
+            **Context:** ${context} 
+            --- 
+            **User's Question:** "${userQuery}"`;
+
+    } else if (intent.intent === 'find_menu_or_shop') {
+        const [menuSnapshot, shopSnapshot] = await Promise.all([
+            getDocs(collection(generalDb, "mess_menus")),
+            getDocs(collection(generalDb, "campus_shops"))
+        ]);
+        
+        const menuDocs = menuSnapshot.docs.map(doc => ({type: 'Menu', ...doc.data()}));
+        const shopDocs = shopSnapshot.docs.map(doc => ({type: 'Shop', ...doc.data()}));
+        context = JSON.stringify([...menuDocs, ...shopDocs]);
+        
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const today = daysOfWeek[new Date().getDay()];
+        
+        finalPrompt = `You are an expert on all food at IIT Delhi (hostel messes and campus shops). 
+            Answer the user's question based ONLY on the provided JSON "Context".
+            - Search through all hostel menus and shop menus to find the answer.
+            - If the user asks about "tonight" or "today", use the provided "Current Day".
+            - Be friendly and use emojis. List items, prices, and hours clearly.
+            **Current Day:** ${today}
+            **Context:** ${context}
+            ---
+            **User's Question:** "${userQuery}"`;
+
+    } else { 
+        const generalQuery = query(collection(generalDb, "knowledge_base"), limit(50));
+        const snapshot = await getDocs(generalQuery);
+        const docs = snapshot.docs.map(doc => ({type: 'Knowledge', ...doc.data()}));
+        context = JSON.stringify(docs);
+        
+        finalPrompt = `Answer the user's general question based ONLY on the provided context.
+            **Context:** ${context} 
+            --- 
+            **User's Question:** "${userQuery}"`;
+    }
+    
+    const fullPrompt = `${replyContext}${finalPrompt} Your response should be witty, helpful, and use Markdown and emojis.`;
+    const aiResponse = await callGemini(fullPrompt);
+    removeTypingIndicator();
+
+    if (aiResponse && aiResponse.startsWith("CLARIFY:")) {
+        try {
+            const jsonStr = aiResponse.substring(8);
+            const students = JSON.parse(jsonStr);
+            let clarificationHtml = "I found a few people with that name! 🤔 Which one are you looking for?<div class='flex flex-wrap gap-2 mt-2'>";
+            
+            students.forEach(student => {
+                clarificationHtml += `<button class="clarification-btn" data-entry="${student.entryNumber}">${student.name}</button>`;
+            });
+            
+            clarificationHtml += "</div>";
+            addChatMessage(clarificationHtml, 'ai', {type: 'clarification'});
+        } catch(e) {
+            addChatMessage("I found a few people with that name, but had a little trouble listing them out. Could you be more specific?", 'ai');
+        }
+    } else {
+        addChatMessage(aiResponse || "Sorry, I couldn't get a response.", 'ai');
+        conversationHistory.push({role: 'ai', text: aiResponse});
+    }
+
+    if (replyingToMessage) {
+        replyingToMessage = null;
+        replyContextBar.classList.add('hidden');
+    }
+
+    // Reset conversation context after successful completion
+    conversationContext = {
+        currentIntent: null,
+        pendingField: null,
+        collectedData: {}
+    };
+
+    sendBtn.disabled = false;
+    userInput.disabled = false;
+    userInput.focus();
+};
 
         function setMode(mode) {
             currentMode = mode;
@@ -421,6 +517,7 @@ async function main() {
 
 
         main();
+
 
 
 
