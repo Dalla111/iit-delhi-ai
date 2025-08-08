@@ -1,4 +1,15 @@
-// /functions/api.js - The Definitive Read-Efficient & Smart Version
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
@@ -104,3 +115,4 @@ export async function onRequest(context) {
         });
     }
 }
+
