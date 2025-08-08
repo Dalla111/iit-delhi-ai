@@ -1,0 +1,14 @@
+{
+  "name": "iitd-ai-assistant",
+  "version": "1.0.0",
+  "description": "IITD AI Assistant on Cloudflare Pages",
+  "scripts": {
+    "dev": "wrangler pages dev public"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  },
+  "dependencies": {
+    "firebase": "^10.12.2"
+  }
+}
