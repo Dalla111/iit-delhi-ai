@@ -476,14 +476,21 @@ async function callGemini(prompt, isJson = false) {
                 
                 const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
                 const today = daysOfWeek[new Date().getDay()];
-                finalPrompt = `You are an expert on all food at IIT Delhi (hostel messes and campus shops). Answer the user's question based ONLY on the provided JSON "Context".
-                - Search through all hostel menus and shop menus to find the answer.
-                - If the user asks about "tonight" or "today", use the provided "Current Day".
-                - Be friendly and use emojis. List items, prices, and hours clearly.
-                **Current Day:** ${today}
-                **Context:** ${context}
-                ---
-                **User's Question:** "${userQuery}"`;
+                // This is the new, more descriptive prompt
+finalPrompt = `You are an expert on all food at IIT Delhi. Your task is to answer the user's question based ONLY on the provided JSON "Context".
+
+**Response Rules:**
+1.  **Use Markdown:** Your entire response must be formatted using Markdown for clarity.
+2.  **Main Heading:** Start with a main heading for the shop or hostel name (e.g., \`### Jwalamukhi Hostel Menu\`).
+3.  **Subheadings for Meals:** Use bolded subheadings for each meal, including its time (e.g., \`**Dinner (8:00 PM - 9:30 PM):**\`).
+4.  **Bulleted List:** List all food items under each meal using bullet points (\`* \`).
+5.  **Be Friendly:** Use a friendly tone and relevant emojis (e.g., 🍲, 🍕, ☕).
+6.  **Current Day:** If the user asks about "today" or "tonight", use the provided "Current Day".
+
+**Current Day:** ${today}
+**Context:** ${context}
+---
+**User's Question:** "${userQuery}"`;
 
             } else if (intent.intent === 'find_person') {
                 if (!intent.year) {
@@ -680,4 +687,5 @@ async function main() {
 }main();
     </script>
 </body>
+
 </html>
