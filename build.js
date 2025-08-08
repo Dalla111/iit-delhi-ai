@@ -15,18 +15,30 @@ if (!geminiApiKey || !databasePairs) {
     process.exit(1);
 }
 
-// Try to parse databasePairs as JSON, if it fails use it as-is
-let parsedDatabasePairs;
-try {
-    parsedDatabasePairs = JSON.parse(databasePairs);
-    console.log('Successfully parsed DATABASE_PAIRS as JSON');
-} catch (e) {
-    console.log('Could not parse DATABASE_PAIRS as JSON, using as string');
-    parsedDatabasePairs = databasePairs;
-}
-
 // Path to index.html
 const indexPath = path.join(__dirname, 'public', 'index.html');
+
+// Convert to valid JSON format if needed
+let formattedDatabasePairs;
+try {
+    // Try to parse as JSON first
+    JSON.parse(databasePairs);
+    formattedDatabasePairs = databasePairs;
+    console.log('DATABASE_PAIRS is already valid JSON');
+} catch (e) {
+    console.log('Converting DATABASE_PAIRS to valid JSON format');
+    
+    // Convert JavaScript object literals to valid JSON
+    formattedDatabasePairs = databasePairs
+        // Remove surrounding quotes if present
+        .replace(/^['"]|['"]$/g, '')
+        // Wrap property names in double quotes
+        .replace(/(\w+)\s*:/g, '"$1":')
+        // Convert single quotes to double quotes
+        .replace(/'/g, '"');
+    
+    console.log('Formatted DATABASE_PAIRS:', formattedDatabasePairs);
+}
 
 // Read and update index.html
 fs.readFile(indexPath, 'utf8', (err, data) => {
@@ -37,7 +49,7 @@ fs.readFile(indexPath, 'utf8', (err, data) => {
 
     const updatedData = data
         .replace('{{GEMINI_API_KEY}}', geminiApiKey)
-        .replace('{{DATABASE_PAIRS}}', JSON.stringify(parsedDatabasePairs));
+        .replace('{{DATABASE_PAIRS}}', formattedDatabasePairs);
 
     fs.writeFile(indexPath, updatedData, 'utf8', (err) => {
         if (err) {
