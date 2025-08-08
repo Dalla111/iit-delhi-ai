@@ -1,29 +1,7 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 {
-  "name": "iitd-ai-chatbot",
+  "name": "iitd-ai-chatbot-secure",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
-    "deploy": "wrangler pages deploy ."
-  },
-  "devDependencies": {
-    "wrangler": "^3.0.0"
-  },
   "dependencies": {
     "firebase": "^10.12.2"
   }
