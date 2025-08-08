@@ -7,66 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* Base styles */
-        html, body { height: 100%; overflow: hidden; }
-        body { font-family: 'Inter', sans-serif; background-color: #131314; color: #e3e3e3; }
-        #app-container { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
-        header { background-color: #131314; border-bottom: 1px solid #333; }
-        #fun-fact-btn { background: linear-gradient(90deg, #89b3f8, #9a89f7, #d783f5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-fill-color: transparent; }
-        
-        /* Main chat area */
-        #chat-container { overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
-        #chat-box { width: 100%; max-width: 68rem; margin: 0 auto; padding: 0 1rem; }
-        #chat-box.initial-center { margin-top: auto; margin-bottom: auto; }
-
-        /* Chat bubbles */
-        .chat-message-wrapper { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
-        .chat-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0; }
-        .avatar-user { background-color: #4f46e5; color: white; }
-        .avatar-ai { background: linear-gradient(135deg, #4285f4, #9b72cb); color: white; }
-        .chat-bubble { max-width: 90%; padding: 1px; word-wrap: break-word; position: relative; }
-        .chat-bubble .content { padding: 12px 18px; }
-        .chat-bubble.user .content { background-color: #4f46e51a; border-radius: 6px 20px 20px 20px; }
-        .chat-bubble.ai .content { background-color: #1e1f20; border-radius: 6px 20px 20px 20px; }
-        .chat-bubble.ai p { margin: 0.5em 0; }
-        .chat-bubble.ai ul { margin-left: 20px; list-style-type: '👉'; padding-left: 1em; }
-        .chat-bubble.ai strong { color: #89b3f8; }
-
-        /* Clarification bubble */
-        .clarification-btn { background-color: #282a2d; border: 1px solid #555; padding: 6px 12px; border-radius: 16px; cursor: pointer; transition: all 0.2s ease; font-size: 0.875rem; font-weight: 500; color: #e3e3e3; }
-        .clarification-btn:hover { background-color: #4f46e5; }
-        
-        /* Typing indicator */
-        .typing-indicator span { height: 8px; width: 8px; margin: 0 2px; background-color: #9e9e9e; border-radius: 50%; display: inline-block; animation: bounce 1.4s infinite ease-in-out both; }
-        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-
-        /* Reply button on hover */
-        .reply-btn { position: absolute; top: 50%; right: -40px; transform: translateY(-50%); background-color: #2c2d2f; border-radius: 50%; padding: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; opacity: 0; transition: opacity 0.2s ease; }
-        .chat-bubble:hover .reply-btn { opacity: 1; }
-
-        /* Footer and Input */
-        footer { background-color: #131314; padding: 0.5rem 1rem 1rem 1rem; }
-        .footer-content { max-width: 68rem; margin: 0 auto; }
-        #mode-selector { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; overflow-x: auto; white-space: nowrap; -ms-overflow-style: none; scrollbar-width: none; }
-        #mode-selector::-webkit-scrollbar { display: none; }
-        .mode-btn { padding: 6px 16px; border-radius: 9999px; font-weight: 500; background-color: #282a2d; color: #e3e3e3; border: 1px solid #444; cursor: pointer; flex-shrink: 0; transition: background-color 0.2s ease; }
-        .mode-btn:hover { background-color: #3c3d40; }
-        .mode-btn.active { background-color: #4f46e5; border-color: #4f46e5; color: white; }
-        #reply-context-bar { background-color: #282a2d; border-left-color: #89b3f8; }
-        .input-wrapper { position: relative; }
-        #user-input { width: 100%; border-radius: 28px; background-color: #1e1f20; border: 1px solid #444; color: #e3e3e3; padding: 14px 56px 14px 20px; font-size: 1rem; transition: border-color 0.2s; }
-        #user-input:focus { outline: none; border-color: #89b3f8; box-shadow: none; --tw-ring-shadow: none; }
-        #send-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background-color: #4f46e5; }
-        #send-btn:hover { background-color: #6366f1; }
-        #send-btn:disabled { background-color: #3c3d40; cursor: not-allowed; }
-
-        /* Initial Loader */
-        .spinner { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    </style>
+    <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
@@ -79,15 +20,16 @@
         <main id="chat-container">
             <div id="chat-box" class="flex flex-col space-y-4 initial-center">
                 <div id="initial-loader" class="text-center py-10">
-                    <div class="spinner mx-auto" style="width: 40px; height: 40px; border-width: 4px; border-style: solid; border-color: #333; border-top-color: #4f46e5; border-radius: 50%;"></div>
+                    <div class="spinner mx-auto border-t-indigo-500" style="width: 40px; height: 40px; border-width: 4px; border-style: solid; border-color: #333; border-top-color: #4f46e5; border-radius: 50%;"></div>
                     <p class="mt-3 text-gray-400">Connecting to campus network... 📡</p>
                 </div>
+                <!-- Chat messages will be appended here -->
             </div>
         </main>
 
         <footer class="flex-shrink-0">
             <div class="footer-content">
-                <div id="mode-selector">
+                 <div id="mode-selector">
                     <button id="mode-general" class="mode-btn active">General</button>
                     <button id="mode-student" class="mode-btn">Student</button>
                     <button id="mode-food" class="mode-btn">Food</button>
@@ -108,6 +50,6 @@
         </footer>
     </div>
     
-    <script src="/client.js"></script>
+    <script type="module" src="/script.js"></script>
 </body>
 </html>
