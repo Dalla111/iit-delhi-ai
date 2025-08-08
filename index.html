@@ -494,7 +494,7 @@ finalPrompt = `You are an expert on all food at IIT Delhi. Your task is to answe
 
             } else if (intent.intent === 'find_person') {
                 if (!intent.year) {
-                    addChatMessage("Write it in this formate, Mona from 2024 entry ", 'ai', {type: 'clarification'});
+                    addChatMessage("Which entry year are you looking for? e.g., 2024, 2025.", 'ai', {type: 'clarification'});
                     removeTypingIndicator(); sendBtn.disabled = false; userInput.disabled = false; userInput.focus(); return;
                 }
                 const collectionName = `students_${intent.year}`;
@@ -560,7 +560,7 @@ finalPrompt = `You are an expert on all food at IIT Delhi. Your task is to answe
                 userInput.placeholder = "Search for a student by name & year...";
             } else if (mode === 'food') {
                 modeFoodBtn.classList.add('active');
-                userInput.placeholder = "Search for your favorite dishes ....";
+                userInput.placeholder = "What's on the menu at Jwala tonight?";
             } else {
                 modeGeneralBtn.classList.add('active');
                 userInput.placeholder = "Ask about clubs, events, places...";
@@ -596,8 +596,8 @@ async function main() {
         const loader = document.getElementById('initial-loader');
         if(loader) loader.remove();
         
-        addChatMessage("Hey there! I'm the IITD AI Assistant, Created by Mona. ", 'ai');
-        C
+        addChatMessage("Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀", 'ai');
+        
         const startButtonContainer = document.createElement('div');
         startButtonContainer.id = 'start-chat-btn-container';
         startButtonContainer.className = 'flex justify-center mt-4';
@@ -689,4 +689,3 @@ async function main() {
 </body>
 
 </html>
-
