@@ -1,111 +1,97 @@
-// This is your secure backend function. It runs on Cloudflare's servers.
-// NOTE: This code is designed for the Cloudflare Pages Functions environment.
-// It uses fetch() for API calls, which is natively supported.
+// /functions/api.js - The Definitive Read-Efficient & Smart Version
 
-// Helper function to initialize a specific Firebase app instance.
-// In a real Cloudflare Worker, you would use Firebase's REST API.
-// This is a simplified simulation of that logic for clarity.
-async function getFirestoreInstance(config, name) {
-    // In a real worker, you'd use the config to get an auth token
-    // and then use fetch with that token to interact with the Firestore REST API.
-    // This is a placeholder for that logic.
-    console.log(`Simulating connection to ${name}`);
-    return {
-        // This would be replaced with actual REST API calls
-        collection: (path) => ({
-            where: () => ({ get: async () => ({ docs: [] }) }),
-            get: async () => ({ docs: [] })
-        })
-    };
-}
-
-async function callGemini(prompt, apiKey, isJson = false) {// This is the CORRECT line
-
-
-
-
-    
-const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-    const payload = { contents: [{ parts: [{ text: prompt }] }] };
-    if (isJson) {
-        payload.generationConfig = { responseMimeType: "application/json" };
-    }
-    const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-        throw new Error(`Gemini API Error: ${response.status} ${await response.text()}`);
-    }
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
-}
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, query, where, limit } from "firebase/firestore";
 
 export async function onRequest(context) {
-    const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-    };
-
-    if (context.request.method === 'OPTIONS') {
-        return new Response(null, { headers: corsHeaders });
+    if (context.request.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
     }
 
     try {
-        const { userQuery, mode, replyContext, conversationHistory } = await context.request.json();
-        
-        // Securely get your API keys from Cloudflare's environment variables
-        const geminiApiKey = context.env.GEMINI_API_KEY;
-        
-        // In a real implementation, you would select a Firebase config here
-        // and use its credentials to make REST API calls.
-        // For this example, we'll pass the query to Gemini to simulate the logic.
+        const { userQuery, conversationHistory } = await context.request.json();
+        const env = context.env;
 
-        // --- DYNAMIC AI BRAIN ---
-        // In a real app, you would first fetch the system prompt from your general DB
-        // const systemPromptDoc = await getDoc(doc(generalDb, "system_prompts", "chatbot_v1"));
-        // const systemPrompt = systemPromptDoc.data().prompt;
-        // For now, we hardcode it here:
-        const systemPrompt = `You are a fun, friendly, and super-helpful AI assistant for students at IIT Delhi. You are an expert at understanding slang, abbreviations, and typos. Answer questions based *only* on the provided "Context" below.`;
-        
-        let contextData = "No data fetched from database in this simulation.";
-        // This is where you would build your database query logic based on the 'mode'
-        // and then fetch the data to create the 'contextData' variable.
+        const callGemini = async (prompt, isJson = false) => {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${env.GEMINI_API_KEY}`;
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+            if (isJson) payload.generationConfig = { responseMimeType: "application/json" };
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`Gemini API error! status: ${response.status}`);
+            const data = await response.json();
+            if (!data.candidates || !data.candidates[0].content) return "I'm sorry, I couldn't generate a response for that.";
+            return data.candidates[0].content.parts[0].text;
+        };
 
-        const finalPrompt = `${systemPrompt}
-        
-        **Analysis Steps & Rules:**
-        1.  **Reply Context is KING:** If the context includes a "Replied-To Message", this is the MOST important piece of information. The user's new question is about this specific message.
-        2.  **Club Membership:** If the context contains a 'Club Found' document, your primary task is to list the names of the members from the 'Member Details' section.
-        3.  **Student Info:** If the context contains one or more 'Student' documents, present their information clearly using Markdown. If there are multiple, ask for clarification using the command: \`CLARIFY:[{"name":"Student Name 1", "entryNumber":"ID1"}, ...]\`.
-        4.  **General Query:** If the context contains 'Knowledge' documents, use them to answer the user's question.
+        const dbPairs = [ { general: 'A1', student: 'A2' }, { general: 'B1', student: 'B2' }, { general: 'C1', student: 'C2' }, { general: 'D1', student: 'D2' }, { general: 'E1', student: 'E2' }];
+        const selectedPair = dbPairs[Math.floor(Math.random() * dbPairs.length)];
+        const generalApp = initializeApp({ apiKey: env[`FIREBASE_API_KEY_${selectedPair.general}`], authDomain: env[`FIREBASE_AUTH_DOMAIN_${selectedPair.general}`], projectId: env[`FIREBASE_PROJECT_ID_${selectedPair.general}`] }, `general-${Date.now()}`);
+        const generalDb = getFirestore(generalApp);
+        const studentApp = initializeApp({ apiKey: env[`FIREBASE_API_KEY_${selectedPair.student}`], authDomain: env[`FIREBASE_AUTH_DOMAIN_${selectedPair.student}`], projectId: env[`FIREBASE_PROJECT_ID_${selectedPair.student}`] }, `student-${Date.now()}`);
+        const studentDb = getFirestore(studentApp);
 
+        // --- STEP 1: AI PLANNER ---
+        const historyString = conversationHistory.map(turn => `${turn.role}: ${turn.text}`).join('\n');
+        const plannerPrompt = `You are a query planning assistant. Your job is to analyze a user's query and conversation history to determine exactly which Firestore collections to query. Respond ONLY with a valid JSON object.
+        Available collections: "mess_menus", "campus_shops", "knowledge_base", "clubs_YYYY", "students_YYYY" (where YYYY is a year).
+        For "monil from 2024", you need "students_2024". For "dance club head", you need "clubs_YYYY" and "students_YYYY". For "paneer roll", you need "mess_menus" and "campus_shops".
+        
+        CONVERSATION HISTORY:
+        ${historyString}
+        
+        USER QUERY: "${userQuery}"
+
+        JSON RESPONSE: {"collections_to_query": ["collection_name_1", "collection_name_2", ...]}`;
+        
+        let plan = { collections_to_query: [] };
+        try {
+            const planJson = await callGemini(plannerPrompt, true);
+            plan = JSON.parse(planJson);
+        } catch (e) {
+            plan = { collections_to_query: ["mess_menus", "campus_shops", "knowledge_base", "clubs_2025", "students_2024", "students_2025"] };
+        }
+
+        // --- STEP 2: TARGETED DATA FETCHING ---
+        const promises = plan.collections_to_query.map(name => {
+            const db = name.startsWith('students_') || name.startsWith('clubs_') ? studentDb : generalDb;
+            return getDocs(collection(db, name)).catch(() => ({ docs: [] }));
+        });
+        
+        const snapshots = await Promise.all(promises);
+        const targetedContext = plan.collections_to_query.reduce((acc, name, index) => {
+            acc[name] = snapshots[index].docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            return acc;
+        }, {});
+
+        // --- STEP 3: AI SYNTHESIZER ---
+        const today = new Date().toLocaleString('en-US', { weekday: 'long', timeZone: 'Asia/Kolkata' });
+        const synthesizerPrompt = `You are a witty, helpful, and exceptionally smart IIT Delhi AI assistant.
+        Your goal is to provide comprehensive, synthesized answers based ONLY on the provided conversation history and the targeted data.
+        
+        **CRITICAL INSTRUCTIONS:**
+        1.  **Use Conversation History for Context:** If the user provides a year after you asked for one, connect it to their previous query.
+        2.  **Synthesize, Don't Just List:** If the user asks for "paneer roll," search all provided menus and present a combined, easy-to-read list.
+        3.  **Current Date:** Today is ${today}. Use this for date-related queries.
+        
+        **CONVERSATION HISTORY:**
+        ${historyString}
+
+        **TARGETED KNOWLEDGE (Source of Truth):**
+        ${JSON.stringify(targetedContext)}
         ---
-        **Context:**
-        ${replyContext}
-        ${contextData}
-        ---
+        Based on the history and the targeted knowledge, provide a helpful and smart response to the last user query: "${userQuery}"`;
         
-        **User's Question/Task:**
-        "${userQuery}"
-        
-        **Your Witty & Helpful Answer (in Markdown):**`;
-
-        const aiResponse = await callGemini(finalPrompt, geminiApiKey);
+        const aiResponse = await callGemini(synthesizerPrompt);
 
         return new Response(JSON.stringify({ response: aiResponse }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
         });
 
     } catch (error) {
-        console.error("Error in Cloudflare Function:", error);
-        return new Response(JSON.stringify({ error: error.message, response: "Oh no! My circuits are a bit tangled right now. 😵 Please try again in a moment." }), {
+        console.error("FATAL ERROR in Cloudflare Function:", error);
+        return new Response(JSON.stringify({ error: "Sorry, a critical error occurred. My brain is rebooting." }), {
             status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
         });
     }
 }
-
-
