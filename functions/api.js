@@ -1,53 +1,16 @@
 // /functions/api.js - The Final, Most Stable Version
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 
 // A more robust way to initialize Firebase in a serverless environment
 // This prevents re-initializing the app on every function run
 function initializeFirebaseApp(config, name) {
-    if (getApps().length > 0 && getApps().some(app => app.name === name)) {
-        return getApp(name);
-    } else {
-        return initializeApp(config, name);
+    const existingApp = getApps().find(app => app.name === name);
+    if (existingApp) {
+        return existingApp;
     }
+    return initializeApp(config, name);
 }
 
 export async function onRequest(context) {
@@ -151,4 +114,3 @@ export async function onRequest(context) {
         });
     }
 }
-
