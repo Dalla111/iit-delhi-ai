@@ -1,5 +1,42 @@
 // /functions/api.js - The Final, Most Stable Version
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 
@@ -114,3 +151,4 @@ export async function onRequest(context) {
         });
     }
 }
+
