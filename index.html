@@ -436,20 +436,6 @@ async function callGemini(prompt, isJson = false) {
         };
         
         const getAiResponse = async (userQuery) => {
-            const cacheKey = `${currentMode}_${userQuery.toLowerCase().trim()}`;
-            if (apiCache.has(cacheKey)) {
-                console.log("Serving response from cache! ⚡");
-                const cachedResponse = apiCache.get(cacheKey);
-                removeTypingIndicator();
-                addChatMessage(cachedResponse, 'ai');
-                conversationHistory.push({role: 'ai', text: cachedResponse});
-        
-                // Re-enable buttons and input
-                sendBtn.disabled = false;
-                userInput.disabled = false;
-                userInput.focus();
-                return; // Important: exit the function
-            }
             sendBtn.disabled = true;
             userInput.disabled = true;
             showTypingIndicator();
@@ -516,12 +502,15 @@ finalPrompt = `You are an expert on all food at IIT Delhi. Your task is to answe
                 const name = intent.name ? intent.name.toLowerCase() : "";
                 // This is the new code that filters on the database
 // Note the use of the "name_lowercase" field we discussed.
-                const studentQuery = query(
-                    collection(studentDb, collectionName),
-                    where("name_lowercase", ">=", name),
-                    where("name_lowercase", "<=", name + '\uf8ff'),
-                    limit(10) // Prevents too many results from being sent
-                );
+                // This is the old code that downloads everything
+const studentQuery = query(collection(studentDb, collectionName));
+const snapshot = await getDocs(studentQuery);
+const results = [];
+snapshot.forEach(doc => {
+    if (doc.data().name.toLowerCase().includes(name)) {
+        results.push({type: 'Student', ...doc.data()});
+    }
+});
                 
                 const snapshot = await getDocs(studentQuery);
                 // This is now much more efficient, we just map the results that the DB found.
@@ -708,5 +697,6 @@ async function main() {
 </body>
 
 </html>
+
 
 
