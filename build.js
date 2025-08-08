@@ -7,6 +7,9 @@ console.log('Starting environment variable injection...');
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const databasePairs = process.env.DATABASE_PAIRS;
 
+console.log('Environment variables received');
+
+
 console.log(`Gemini Key Length: ${geminiApiKey?.length || 0}`);
 console.log(`Database Pairs Length: ${databasePairs?.length || 0}`);
 
