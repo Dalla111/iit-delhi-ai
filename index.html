@@ -8,114 +8,39 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Base styles for a dark, Gemini-like theme */
-        html, body {
-            height: 100%;
-            overflow: hidden;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #131314;
-            color: #e3e3e3;
-        }
-        #app-container {
-            height: 100vh; /* Full viewport height */
-            display: flex;
-            flex-direction: column;
-        }
-        /* Header styling */
-        header {
-            background-color: #131314;
-            border-bottom: 1px solid #333;
-            flex-shrink: 0; /* Prevent header from shrinking */
-        }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #131314; color: #e3e3e3; }
+        #app-container { height: 100vh; height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; }
+        header { background-color: #131314; border-bottom: 1px solid #333; }
         #fun-fact-btn {
             background: linear-gradient(90deg, #89b3f8, #9a89f7, #d783f5);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-fill-color: transparent;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; text-fill-color: transparent;
         }
-
-        /* Main chat area styling */
-        #chat-container {
-            flex: 1 1 auto; /* Allow container to grow and shrink */
-            overflow-y: auto;
-            padding: 1rem 0;
-            display: flex; /* Use flexbox for vertical centering */
-            flex-direction: column;
-        }
-        #chat-box {
-            width: 100%;
-            max-width: 68rem; /* 768px */
-            margin: 0 auto;
-            padding: 0 1rem;
-        }
-        /* Class to center chat box initially and push to top after first message */
-        #chat-box.initial-center {
-            margin-top: auto; /* Push to vertical center */
-            margin-bottom: auto;
-        }
-
-
-        /* Chat bubble styling */
-        .chat-message-wrapper {
-            display: flex;
-            gap: 1rem; /* 16px */
-            margin-bottom: 1.5rem; /* 24px */
-        }
+        #chat-container { overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
+        #chat-box { width: 100%; max-width: 48rem; margin: 0 auto; padding: 0 1rem; }
+        #chat-box.initial-center { margin-top: auto; margin-bottom: auto; }
+        .chat-message-wrapper { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
         .chat-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            flex-shrink: 0;
+            width: 32px; height: 32px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0;
         }
-        .avatar-user {
-            background-color: #4f46e5;
-            color: white;
-        }
-        .avatar-ai {
-            background: linear-gradient(135deg, #4285f4, #9b72cb);
-            color: white;
-        }
-        .chat-bubble {
-            max-width: 90%;
-            padding: 1px; /* for reply button positioning */
-            word-wrap: break-word;
-            position: relative;
-        }
-        .chat-bubble .content {
-             padding: 12px 18px;
-        }
-        .chat-bubble.user .content {
-            background-color: #4f46e51a;
-            border-radius: 6px 20px 20px 20px;
-        }
-        .chat-bubble.ai .content {
-            background-color: #1e1f20;
-            border-radius: 6px 20px 20px 20px;
-        }
+        .avatar-user { background-color: #4f46e5; color: white; }
+        .avatar-ai { background: linear-gradient(135deg, #4285f4, #9b72cb); color: white; }
+        .chat-bubble { max-width: 90%; word-wrap: break-word; position: relative; }
+        .chat-bubble .content { padding: 12px 18px; }
+        .chat-bubble.user .content { background-color: transparent; border-radius: 6px 20px 20px 20px; }
+        .chat-bubble.ai .content { background-color: #1e1f20; border-radius: 6px 20px 20px 20px; }
         .chat-bubble.ai p { margin: 0.5em 0; }
         .chat-bubble.ai ul { margin-left: 20px; list-style-type: '👉'; padding-left: 1em; }
         .chat-bubble.ai strong { color: #89b3f8; }
-
-        /* Clarification bubble for specific questions */
-        .chat-bubble.clarification .content {
-            background-color: #2c2144;
-            border: 1px solid #4f46e5;
-        }
+        .chat-bubble.clarification .content { background-color: #2c2144; border: 1px solid #4f46e5; }
         .clarification-btn {
             background-color: #282a2d; border: 1px solid #555; padding: 6px 12px;
             border-radius: 16px; cursor: pointer; transition: all 0.2s ease;
             font-size: 0.875rem; font-weight: 500; color: #e3e3e3;
         }
         .clarification-btn:hover { background-color: #4f46e5; }
-        
-        /* Typing indicator animation */
         .typing-indicator span {
             height: 8px; width: 8px; margin: 0 2px;
             background-color: #9e9e9e; border-radius: 50%;
@@ -124,116 +49,61 @@
         .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
         .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
-
-        /* Reply button on hover */
         .reply-btn {
             position: absolute; top: 50%; right: -40px;
             transform: translateY(-50%);
             background-color: #2c2d2f; border-radius: 50%;
             padding: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            cursor: pointer; opacity: 0; transition: opacity 0.2s ease;
+            cursor: pointer; opacity: 1;
         }
-        .chat-bubble:hover .reply-btn { opacity: 1; }
-
-        /* Footer and Input area styling */
-        footer {
-            background-color: #131314;
-            padding: 0.5rem 1rem 1rem 1rem;
-            flex-shrink: 0; /* Prevent footer from shrinking */
-        }
-        .footer-content {
-            max-width: 68rem;
-            margin: 0 auto;
-        }
-        /* Mode changer buttons (now at the bottom) */
-        #mode-selector {
-            display: flex;
-            gap: 0.5rem; /* 8px */
-            margin-bottom: 0.75rem; /* 12px */
-            overflow-x: auto; /* Allow horizontal scrolling */
-            white-space: nowrap; /* Keep buttons on one line */
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
-        }
-        /* Hide scrollbar for Chrome, Safari and Opera */
-        #mode-selector::-webkit-scrollbar {
-            display: none;
-        }
-
+        footer { background-color: #131314; padding: 0.5rem 1rem 1rem 1rem; }
+        .footer-content { max-width: 48rem; margin: 0 auto; }
+        #mode-selector { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; overflow-x: auto; white-space: nowrap; -ms-overflow-style: none; scrollbar-width: none; }
+        #mode-selector::-webkit-scrollbar { display: none; }
         .mode-btn {
             padding: 6px 16px; border-radius: 9999px; font-weight: 500;
-            background-color: #282a2d; color: #e3e3e3;
-            border: 1px solid #444;
-            cursor: pointer;
-            flex-shrink: 0; /* Prevent buttons from shrinking */
-            transition: background-color 0.2s ease;
+            background-color: #282a2d; color: #e3e3e3; border: 1px solid #444;
+            cursor: pointer; flex-shrink: 0; transition: background-color 0.2s ease;
         }
         .mode-btn:hover { background-color: #3c3d40; }
         .mode-btn.active { background-color: #4f46e5; border-color: #4f46e5; color: white; }
-
-        /* Reply context bar styling */
-        #reply-context-bar {
-            background-color: #282a2d;
-            border-left-color: #89b3f8;
-        }
-        
-        /* Input field and send button */
-        .input-wrapper {
-            position: relative;
-        }
+        #reply-context-bar { background-color: #282a2d; border-left-color: #89b3f8; }
+        .input-wrapper { position: relative; }
         #user-input {
-            width: 100%;
-            border-radius: 28px;
-            background-color: #1e1f20;
-            border: 1px solid #444;
-            color: #e3e3e3;
-            padding: 14px 56px 14px 20px; /* More padding */
-            font-size: 1rem;
-            transition: border-color 0.2s;
+            width: 100%; border-radius: 28px; background-color: #1e1f20;
+            border: 1px solid #444; color: #e3e3e3;
+            padding: 14px 56px 14px 20px; font-size: 1rem; transition: border-color 0.2s;
         }
-        #user-input:focus {
-            outline: none;
-            border-color: #89b3f8;
-            box-shadow: none;
-            --tw-ring-shadow: none;
-        }
+        #user-input:focus { outline: none; border-color: #89b3f8; box-shadow: none; --tw-ring-shadow: none; }
         #send-btn {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
             background-color: #4f46e5;
         }
-         #send-btn:hover {
-            background-color: #6366f1;
-        }
-        #send-btn:disabled {
-            background-color: #3c3d40;
-            cursor: not-allowed;
-        }
-
-        /* Initial Loader */
-        .spinner {
-             animation: spin 1s linear infinite;
-        }
+         #send-btn:hover { background-color: #6366f1; }
+        #send-btn:disabled { background-color: #3c3d40; cursor: not-allowed; }
+        .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <div id="app-container" class="w-full h-full">
-        <header class="p-3 flex justify-between items-center shadow-md flex-shrink-0">
+    <div id="app-container">
+        <header class="p-3 flex justify-between items-center">
             <h1 class="text-xl font-bold">IIT Delhi AI</h1>
             <button id="fun-fact-btn" title="Get a Fun Fact!" class="text-3xl hover:scale-110 transition-transform">✨</button>
         </header>
 
-        <main id="chat-container" class="flex-1">
+        <main id="chat-container">
             <div id="chat-box" class="flex flex-col space-y-4 initial-center">
-                <div id="initial-loader" class="text-center py-10">
-                    <div class="spinner mx-auto border-t-indigo-500" style="width: 40px; height: 40px; border-width: 4px; border-style: solid; border-color: #333; border-top-color: #4f46e5; border-radius: 50%;"></div>
-                    <p class="mt-3 text-gray-400">Connecting to campus network... 📡</p>
+                <div class="chat-message-wrapper">
+                    <div class="chat-avatar avatar-ai">AI</div>
+                    <div class="chat-bubble ai">
+                        <div class="content"><p>Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀</p></div>
+                    </div>
                 </div>
-                <!-- Chat messages will be appended here -->
+                <div id="start-chat-btn-container" class="flex justify-center mt-4">
+                    <button id="start-chat-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-indigo-700 transition-all shadow-lg">Let's get started ✨</button>
+                </div>
             </div>
         </main>
 
@@ -259,257 +129,216 @@
             </div>
         </footer>
     </div>
-
+    
     <script type="module">
-    // --- STATE AND DOM ELEMENTS ---
-    let conversationHistory = [], replyingToMessage = null;
-    let currentMode = 'general';
-    let localClarificationData = null; // Store data for clarification buttons
+        // NO MORE FIREBASE LIBRARIES OR API KEYS HERE!
+        let conversationHistory = [], replyingToMessage = null;
+        let currentMode = 'general';
 
-    const chatContainer = document.getElementById('chat-container');
-    const chatBox = document.getElementById('chat-box');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
-    const funFactBtn = document.getElementById('fun-fact-btn');
-    const initialLoader = document.getElementById('initial-loader');
-    const replyContextBar = document.getElementById('reply-context-bar');
-    const replyText = document.getElementById('reply-text');
-    const cancelReplyBtn = document.getElementById('cancel-reply-btn');
-    const modeGeneralBtn = document.getElementById('mode-general');
-    const modeStudentBtn = document.getElementById('mode-student');
-    const modeFoodBtn = document.getElementById('mode-food');
+        const chatContainer = document.getElementById('chat-container');
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const funFactBtn = document.getElementById('fun-fact-btn');
+        const replyContextBar = document.getElementById('reply-context-bar');
+        const replyText = document.getElementById('reply-text');
+        const cancelReplyBtn = document.getElementById('cancel-reply-btn');
+        const modeGeneralBtn = document.getElementById('mode-general');
+        const modeStudentBtn = document.getElementById('mode-student');
+        const modeFoodBtn = document.getElementById('mode-food');
 
-    // --- SECURE BACKEND API CALLER ---
-    async function callBackend(payload) {
-        try {
-            const response = await fetch('/api', { // The path to our Cloudflare Function
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data.error) return `😢 ${data.error}`;
-                return data.response;
+        const addChatMessage = (message, sender, options = {}) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chat-message-wrapper';
+            const avatar = document.createElement('div');
+            avatar.className = `chat-avatar ${sender === 'user' ? 'avatar-user' : 'avatar-ai'}`;
+            avatar.textContent = sender === 'user' ? 'You' : 'AI';
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${sender}`;
+            if (options.type === 'clarification') bubble.classList.add('clarification');
+            const content = document.createElement('div');
+            content.className = 'content';
+            if (sender === 'ai') {
+                const messageId = Date.now();
+                bubble.dataset.messageId = messageId;
+                bubble.dataset.messageText = message;
+                const replyBtn = document.createElement('div');
+                replyBtn.className = 'reply-btn';
+                replyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
+                bubble.appendChild(replyBtn);
             }
-            return "Sorry, I'm having trouble connecting to my brain right now. 🧠 Please try again in a moment.";
-        } catch (error) {
-            console.error('Fetch error:', error);
-            return "It seems there's a network issue. Please check your connection and try again.";
-        }
-    }
-
-    // --- UI/DISPLAY FUNCTIONS (No changes needed here) ---
-    const addChatMessage = (message, sender, options = {}) => {
-        if (chatBox.classList.contains('initial-center')) {
-            chatBox.classList.remove('initial-center');
-            chatBox.innerHTML = ''; // Clear everything to start the chat
-        }
-        const wrapper = document.createElement('div');
-        wrapper.className = 'chat-message-wrapper';
-        const avatar = document.createElement('div');
-        avatar.className = `chat-avatar ${sender === 'user' ? 'avatar-user' : 'avatar-ai'}`;
-        avatar.textContent = sender === 'user' ? 'You' : 'AI';
-        const bubble = document.createElement('div');
-        bubble.className = `chat-bubble ${sender}`;
-        if (options.type === 'clarification') bubble.classList.add('clarification');
-        const content = document.createElement('div');
-        content.className = 'content';
-        if (sender === 'ai') {
-            const messageId = Date.now();
-            bubble.dataset.messageId = messageId;
-            bubble.dataset.messageText = message;
-            const replyBtn = document.createElement('div');
-            replyBtn.className = 'reply-btn';
-            replyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
-            bubble.appendChild(replyBtn);
-        }
-        content.innerHTML = marked.parse(message);
-        bubble.appendChild(content);
-        if (sender === 'user') wrapper.style.flexDirection = 'row-reverse';
-        wrapper.appendChild(avatar);
-        wrapper.appendChild(bubble);
-        chatBox.appendChild(wrapper);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    };
-
-    const showTypingIndicator = () => {
-        if (chatBox.classList.contains('initial-center')) {
-            chatBox.classList.remove('initial-center');
-            if (initialLoader) initialLoader.remove();
-        }
-        const wrapper = document.createElement('div');
-        wrapper.id = 'typing-indicator-wrapper';
-        wrapper.className = 'chat-message-wrapper';
-        const avatar = document.createElement('div');
-        avatar.className = 'chat-avatar avatar-ai';
-        avatar.textContent = 'AI';
-        const indicator = document.createElement('div');
-        indicator.id = 'typing-bubble';
-        indicator.className = 'chat-bubble ai typing-indicator';
-        indicator.innerHTML = '<div class="content"><span></span><span></span><span></span></div>';
-        wrapper.appendChild(avatar);
-        wrapper.appendChild(indicator);
-        chatBox.appendChild(wrapper);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    };
-    const removeTypingIndicator = () => { document.getElementById('typing-indicator-wrapper')?.remove(); };
-
-    // --- CORE LOGIC FUNCTIONS (Simplified) ---
-
-    // This is the function that gets called when the user sends a message.
-    const handleSend = async () => {
-        const userQuery = userInput.value.trim();
-        if (!userQuery) return;
-
-        addChatMessage(userQuery, 'user');
-        conversationHistory.push({ role: 'user', text: userQuery });
-        userInput.value = '';
-        await getAiResponse(userQuery);
-    };
-
-    // This function is now very simple. It just prepares data and calls the backend.
-    const getAiResponse = async (userQuery) => {
-        sendBtn.disabled = true;
-        userInput.disabled = true;
-        showTypingIndicator();
-
-        let replyContext = "";
-        if (replyingToMessage) {
-            replyContext = `The user is directly replying to your previous message. Use this as the primary context.\n**Replied-To Message:** "${replyingToMessage.text}"\n\n`;
-        }
-        
-        // A simple regex to find a 4-digit year in student queries.
-        let intentData = {};
-        if (currentMode === 'student') {
-            const yearMatch = userQuery.match(/\b(20\d{2})\b/);
-            const name = userQuery.replace(/\b(20\d{2})\b/, '').trim();
-            if (!yearMatch) {
-                removeTypingIndicator();
-                addChatMessage("Please specify an entry year to search for a student, e.g., 'Rohan Sharma 2024'.", 'ai');
-                sendBtn.disabled = false; userInput.disabled = false; userInput.focus();
-                return;
-            }
-            intentData = { name: name, year: yearMatch[0] };
-        }
-
-        // Prepare the payload for our secure backend
-        const payload = {
-            userQuery: userQuery,
-            mode: currentMode,
-            replyContext: replyContext,
-            intentData: intentData
-        };
-
-        const aiResponse = await callBackend(payload);
-        removeTypingIndicator();
-
-        // Check if the backend sent a special CLARIFY command
-        if (aiResponse && aiResponse.startsWith("CLARIFY:")) {
-            try {
-                const jsonStr = aiResponse.substring(8);
-                const students = JSON.parse(jsonStr);
-                localClarificationData = students; // Store student data locally for the buttons
-                let clarificationHtml = "I found a few people with that name! 🤔 Which one are you looking for?";
-                addChatMessage(clarificationHtml, 'ai', {type: 'clarification'});
-
+            content.innerHTML = marked.parse(message);
+            bubble.appendChild(content);
+            if (sender === 'user') { wrapper.style.flexDirection = 'row-reverse'; }
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(bubble);
+            if (options.actions) {
                 const actionsWrapper = document.createElement('div');
                 actionsWrapper.className = 'flex flex-wrap gap-2 mt-2 pl-12';
-                students.forEach(student => {
+                options.actions.forEach(action => {
                     const button = document.createElement('button');
                     button.className = 'clarification-btn';
-                    button.dataset.entry = student.entryNumber; // Use entry number as a unique ID
-                    button.textContent = `${student.name} (${student.entryNumber})`;
+                    button.dataset.action = action.action;
+                    button.dataset.query = action.query;
+                    button.innerHTML = action.label;
                     actionsWrapper.appendChild(button);
                 });
+                chatBox.appendChild(wrapper);
                 chatBox.appendChild(actionsWrapper);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-
-            } catch(e) {
-                addChatMessage("I found a few people, but had trouble listing them. Could you be more specific?", 'ai');
+            } else {
+                 chatBox.appendChild(wrapper);
             }
-        } else {
-            addChatMessage(aiResponse, 'ai');
-            conversationHistory.push({ role: 'ai', text: aiResponse });
-        }
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
         
-        if (replyingToMessage) {
-            replyingToMessage = null;
-            replyContextBar.classList.add('hidden');
-        }
+        const showTypingIndicator = () => {
+            if (chatBox.classList.contains('initial-center')) {
+                chatBox.classList.remove('initial-center');
+                chatBox.innerHTML = '';
+            }
+            const wrapper = document.createElement('div');
+            wrapper.id = 'typing-indicator-wrapper';
+            wrapper.className = 'chat-message-wrapper';
+            const avatar = document.createElement('div');
+            avatar.className = 'chat-avatar avatar-ai';
+            avatar.textContent = 'AI';
+            const indicator = document.createElement('div');
+            indicator.id = 'typing-bubble';
+            indicator.className = 'chat-bubble ai typing-indicator';
+            indicator.innerHTML = '<div class="content"><span></span><span></span><span></span></div>';
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(indicator);
+            chatBox.appendChild(wrapper);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
+        const removeTypingIndicator = () => { document.getElementById('typing-indicator-wrapper')?.remove(); };
 
-        sendBtn.disabled = false;
-        userInput.disabled = false;
-        userInput.focus();
-    };
+        const handleSend = async () => {
+            const userQuery = userInput.value.trim();
+            if (!userQuery) return;
 
-    function setMode(mode) {
-        currentMode = mode;
-        [modeGeneralBtn, modeStudentBtn, modeFoodBtn].forEach(btn => btn.classList.remove('active'));
-        if (mode === 'student') {
-            modeStudentBtn.classList.add('active');
-            userInput.placeholder = "Search for a student by name & year...";
-        } else if (mode === 'food') {
-            modeFoodBtn.classList.add('active');
-            userInput.placeholder = "What's on the menu at Jwala tonight?";
-        } else {
-            modeGeneralBtn.classList.add('active');
-            userInput.placeholder = "Ask about clubs, events, places...";
-        }
-    }
+            const startButtonContainer = document.getElementById('start-chat-btn-container');
+            if (startButtonContainer) startButtonContainer.remove();
 
-    // --- INITIALIZATION ---
-    // This is the new, correct version.
-    function main() {
-        // The loader is now removed only when the user starts the chat,
-        // so we don't need to do anything here except add the welcome message.
-        if (initialLoader) initialLoader.remove();
-        addChatMessage("Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀", 'ai');
-        // This class makes the initial message appear in the middle of the screen.
-        chatBox.classList.add('initial-center');
-
-        // Setup all event listeners
-        sendBtn.addEventListener('click', handleSend);
-        userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
-        modeGeneralBtn.addEventListener('click', () => setMode('general'));
-        modeStudentBtn.addEventListener('click', () => setMode('student'));
-        modeFoodBtn.addEventListener('click', () => setMode('food'));
-        cancelReplyBtn.addEventListener('click', () => {
-            replyingToMessage = null;
-            replyContextBar.classList.add('hidden');
-        });
-        funFactBtn.addEventListener('click', () => {
-             getAiResponse("Tell me a fun, interesting, or little-known fact about IIT Delhi.");
-        });
-
-        // Event listener for reply and clarification buttons
-        chatBox.addEventListener('click', async (e) => {
-            const replyBtn = e.target.closest('.reply-btn');
-            if (replyBtn) {
-                const bubble = replyBtn.closest('.chat-bubble');
-                replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
-                replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
-                replyContextBar.classList.remove('hidden');
-                userInput.focus();
-                return;
+            if (chatBox.classList.contains('initial-center')) {
+                chatBox.classList.remove('initial-center');
+                chatBox.innerHTML = '';
             }
 
-            const clarificationBtn = e.target.closest('.clarification-btn');
-            if (clarificationBtn && localClarificationData) {
-                const entryNumber = clarificationBtn.dataset.entry;
-                const student = localClarificationData.find(doc => doc.entryNumber === entryNumber);
-                if (student) {
-                    const query = `Tell me more about the student with this info: ${JSON.stringify(student)}`;
-                    addChatMessage(`Selected: ${student.name}`, 'user');
-                    await getAiResponse(query);
-                }
+            addChatMessage(userQuery, 'user');
+            conversationHistory.push({role: 'user', text: userQuery});
+            userInput.value = '';
+            await getAiResponse(userQuery);
+        };
+        
+        const getAiResponse = async (userQuery) => {
+            sendBtn.disabled = true;
+            userInput.disabled = true;
+            showTypingIndicator();
+
+            const replyContext = replyingToMessage ? replyingToMessage.text : "";
+            
+            // This is the ONLY network call the frontend makes.
+            const response = await fetch('/api', { // Calls our secure backend function
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userQuery: userQuery,
+                    mode: currentMode,
+                    replyContext: replyContext,
+                    conversationHistory: conversationHistory.slice(-4)
+                })
+            });
+
+            removeTypingIndicator();
+
+            if (!response.ok) {
+                addChatMessage("Sorry, there was an error connecting to the AI. Please try again.", 'ai');
+            } else {
+                const data = await response.json();
+                addChatMessage(data.response, 'ai');
+                conversationHistory.push({role: 'ai', text: data.response});
             }
+
+            replyingToMessage = null;
+            replyContextBar.classList.add('hidden');
+            sendBtn.disabled = false;
+            userInput.disabled = false;
+            userInput.focus();
+        };
+
+        function setMode(mode) {
+            currentMode = mode;
+            [modeGeneralBtn, modeStudentBtn, modeFoodBtn].forEach(btn => btn.classList.remove('active'));
+
+            if (mode === 'student') {
+                modeStudentBtn.classList.add('active');
+                userInput.placeholder = "Search for a student by name & year...";
+            } else if (mode === 'food') {
+                modeFoodBtn.classList.add('active');
+                userInput.placeholder = "What's on the menu at Jwala tonight?";
+            } else {
+                modeGeneralBtn.classList.add('active');
+                userInput.placeholder = "Ask about clubs, events, places...";
+            }
+        }
+
+        // REPLACE your existing main() function with this correct version
+function main() {
+    // Remove the initial loading spinner
+    document.getElementById('initial-loader')?.remove();
+    
+    // Find the existing button container and button
+    const startButtonContainer = document.getElementById('start-chat-btn-container');
+    const startButton = document.getElementById('start-chat-btn');
+
+    // Make the existing button functional
+    if (startButton && startButtonContainer) {
+        startButton.addEventListener('click', () => {
+            if (chatBox.classList.contains('initial-center')) {
+                chatBox.classList.remove('initial-center');
+            }
+            startButtonContainer.remove();
+            userInput.focus();
         });
     }
 
-    // Start the application
-    main();
-</script>
+    // --- All other event listeners remain the same ---
+    sendBtn.addEventListener('click', handleSend);
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
+    
+    modeGeneralBtn.addEventListener('click', () => setMode('general'));
+    modeStudentBtn.addEventListener('click', () => setMode('student'));
+    modeFoodBtn.addEventListener('click', () => setMode('food'));
+
+    cancelReplyBtn.addEventListener('click', () => { 
+        replyingToMessage = null;
+        replyContextBar.classList.add('hidden');
+    });
+
+    funFactBtn.addEventListener('click', async () => { 
+        const startBtnContainer = document.getElementById('start-chat-btn-container');
+        if(startBtnContainer) startBtnContainer.remove();
+        if (chatBox.classList.contains('initial-center')) {
+            chatBox.classList.remove('initial-center');
+            chatBox.innerHTML = '';
+        }
+        addChatMessage("Let me check my archives for a fun fact...", 'user');
+        await getAiResponse("Tell me a fun, interesting, or little-known fact about IIT Delhi.");
+    });
+
+    chatBox.addEventListener('dblclick', (e) => {
+        const bubble = e.target.closest('.chat-bubble.ai');
+        if (bubble && bubble.dataset.messageId) {
+            replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
+            replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
+            replyContextBar.classList.remove('hidden');
+            userInput.focus();
+        }
+    });
+}
+
+        main();
+    </script>
 </body>
 </html>
-
