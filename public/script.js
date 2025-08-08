@@ -3,17 +3,23 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/1
 import { getFirestore, collection, getDocs, query, where, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Declare variables without initialization
+// Get environment variables from Cloudflare with error handling
 let databasePairs, geminiApiKey;
 
-// Environment variables handling
 try {
     console.log("Raw DATABASE_PAIRS:", window.DATABASE_PAIRS);
     
-    // Parse only if it's a string
-    if (typeof window.DATABASE_PAIRS === 'string') {
+    // Check if it's already a JavaScript object
+    if (typeof window.DATABASE_PAIRS === 'object') {
+        databasePairs = window.DATABASE_PAIRS;
+    } 
+    // Otherwise try to parse it as JSON
+    else if (typeof window.DATABASE_PAIRS === 'string') {
         databasePairs = JSON.parse(window.DATABASE_PAIRS);
-    } else {
-        console.warn("DATABASE_PAIRS is not a string:", window.DATABASE_PAIRS);
+    } 
+    // Fallback to using as-is
+    else {
+        console.warn("DATABASE_PAIRS is not a string or object:", window.DATABASE_PAIRS);
         databasePairs = window.DATABASE_PAIRS;
     }
     
@@ -39,7 +45,6 @@ try {
     // Prevent further execution
     throw error;
 }
-
 function setAppHeight() {
             const doc = document.documentElement;
             doc.style.setProperty('--app-height', `${window.innerHeight}px`);
@@ -419,6 +424,7 @@ function setAppHeight() {
 
 
         main();
+
 
 
 
