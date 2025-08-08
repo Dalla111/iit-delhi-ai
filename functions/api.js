@@ -3,6 +3,7 @@ import { getFirestore, collection, getDocs, query, limit } from "firebase/firest
 
 // This is the main handler for your Cloudflare Function.
 // It is the new, secure, server-side version of your 'getAiResponse' function.
+// This is the new, correct version.
 export async function onRequest(context) {
     // Only allow POST requests for security
     if (context.request.method !== 'POST') {
@@ -158,4 +159,5 @@ export async function onRequest(context) {
     }
 
 }
+
 
