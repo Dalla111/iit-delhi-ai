@@ -307,6 +307,10 @@ async function main() {
     try {
         const selectedPair = databasePairs[Math.floor(Math.random() * databasePairs.length)];
         
+        if (!isProduction) {
+            console.log(`Connecting to database pair`);
+        }
+
         const generalApp = initializeApp(selectedPair.general.config, selectedPair.general.name);
         const studentApp = initializeApp(selectedPair.student.config, selectedPair.student.name);
         generalDb = getFirestore(generalApp);
@@ -417,6 +421,7 @@ async function main() {
 
 
         main();
+
 
 
 
