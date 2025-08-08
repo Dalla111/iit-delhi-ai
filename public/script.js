@@ -6,32 +6,27 @@ import { getFirestore, collection, getDocs, query, where, limit } from "https://
 // Get environment variables from Cloudflare with error handling
 
 // Get environment variables from Cloudflare
-let databasePairs, geminiApiKey;
-
+let databasePairs;
 try {
-    console.log("Raw DATABASE_PAIRS:", window.DATABASE_PAIRS);
+    // Only log in development
+    if (process.env.NODE_ENV !== 'production') {
+        console.log("DATABASE_PAIRS received");
+    }
     
-    // Parse the JSON data
     databasePairs = JSON.parse(window.DATABASE_PAIRS);
-    geminiApiKey = window.GEMINI_API_KEY;
-    
-    console.log("Parsed databasePairs:", databasePairs);
 } catch (error) {
-    console.error("Error parsing environment variables:", error);
+    console.error("Configuration error");
     
-    // Fallback to error message in UI
     const loader = document.getElementById('initial-loader') || document.getElementById('chat-box');
     if (loader) {
         loader.innerHTML = `
             <p class="text-red-500 font-bold p-4 text-center">
-                Configuration Error: ${error.message}
+                Configuration Error
             </p>
-            <p class="text-gray-400 text-center">Please check environment variables in Cloudflare settings</p>
-            <p class="text-gray-400 text-center">Value: ${String(window.DATABASE_PAIRS).substring(0, 200)}</p>
+            <p class="text-gray-400 text-center">Please contact support</p>
         `;
     }
     
-    // Prevent further execution
     throw error;
 }
 
@@ -307,114 +302,121 @@ function setAppHeight() {
             }
         }
 
-        async function main() {
-            try {
-                const selectedPair = databasePairs[Math.floor(Math.random() * databasePairs.length)];
-                console.log(`Connecting to database pair: ${selectedPair.general.name} & ${selectedPair.student.name}`);
+async function main() {
+    try {
+        const selectedPair = databasePairs[Math.floor(Math.random() * databasePairs.length)];
+        
+        const generalApp = initializeApp(selectedPair.general.config, selectedPair.general.name);
+        const studentApp = initializeApp(selectedPair.student.config, selectedPair.student.name);
+        generalDb = getFirestore(generalApp);
+        studentDb = getFirestore(studentApp);
 
-                const generalApp = initializeApp(selectedPair.general.config, selectedPair.general.name);
-                const studentApp = initializeApp(selectedPair.student.config, selectedPair.student.name);
-                generalDb = getFirestore(generalApp);
-                studentDb = getFirestore(studentApp);
+        await Promise.all([
+            signInAnonymously(getAuth(generalApp)),
+            signInAnonymously(getAuth(studentApp))
+        ]);
+        
+        const loader = document.getElementById('initial-loader');
+        if(loader) loader.remove();
+        
+        addChatMessage("Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀", 'ai');
+        
+        const startButtonContainer = document.createElement('div');
+        startButtonContainer.id = 'start-chat-btn-container';
+        startButtonContainer.className = 'flex justify-center mt-4';
+        startButtonContainer.innerHTML = `<button id="start-chat-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-indigo-700 transition-all shadow-lg">Let's get started ✨</button>`;
+        chatBox.appendChild(startButtonContainer);
 
-                await Promise.all([
-                    signInAnonymously(getAuth(generalApp)),
-                    signInAnonymously(getAuth(studentApp))
-                ]);
-                
-                const loader = document.getElementById('initial-loader');
-                if(loader) loader.remove();
-                
-                addChatMessage("Hey there! I'm the IITD AI Assistant, fully synced and ready to help. What's up? 🚀", 'ai');
-                
-                const startButtonContainer = document.createElement('div');
-                startButtonContainer.id = 'start-chat-btn-container';
-                startButtonContainer.className = 'flex justify-center mt-4';
-                startButtonContainer.innerHTML = `<button id="start-chat-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-full hover:bg-indigo-700 transition-all shadow-lg">Let's get started ✨</button>`;
-                chatBox.appendChild(startButtonContainer);
+        document.getElementById('start-chat-btn').addEventListener('click', () => {
+            if (chatBox.classList.contains('initial-center')) {
+                chatBox.classList.remove('initial-center');
+            }
+            startButtonContainer.remove();
+            userInput.focus();
+        });
 
-                document.getElementById('start-chat-btn').addEventListener('click', () => {
-                    if (chatBox.classList.contains('initial-center')) {
-                        chatBox.classList.remove('initial-center');
-                    }
-                    startButtonContainer.remove();
-                    userInput.focus();
-                });
+        sendBtn.addEventListener('click', handleSend);
+        userInput.addEventListener('keypress', (e) => { 
+            if (e.key === 'Enter') handleSend(); 
+        });
+        
+        modeGeneralBtn.addEventListener('click', () => setMode('general'));
+        modeStudentBtn.addEventListener('click', () => setMode('student'));
+        modeFoodBtn.addEventListener('click', () => setMode('food'));
 
+        cancelReplyBtn.addEventListener('click', () => { 
+            replyingToMessage = null;
+            replyContextBar.classList.add('hidden');
+        });
 
-                sendBtn.addEventListener('click', handleSend);
-                userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
-                
-                modeGeneralBtn.addEventListener('click', () => setMode('general'));
-                modeStudentBtn.addEventListener('click', () => setMode('student'));
-                modeFoodBtn.addEventListener('click', () => setMode('food'));
+        funFactBtn.addEventListener('click', async () => { 
+            const startButton = document.getElementById('start-chat-btn-container');
+            if(startButton) startButton.remove();
+            if (chatBox.classList.contains('initial-center')) {
+                chatBox.classList.remove('initial-center');
+                chatBox.innerHTML = '';
+            }
+            addChatMessage("Let me check my archives for a fun fact...", 'user');
+            const prompt = "Tell me a fun, interesting, or little-known fact about IIT Delhi, its history, campus, or a notable achievement. Make it sound exciting!";
+            await getAiResponse(prompt);
+        });
 
-                cancelReplyBtn.addEventListener('click', () => { 
-                    replyingToMessage = null;
-                    replyContextBar.classList.add('hidden');
-                });
+        chatBox.addEventListener('click', async (e) => { 
+            const replyBtn = e.target.closest('.reply-btn');
+            if (replyBtn) {
+                const bubble = replyBtn.closest('.chat-bubble');
+                replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
+                replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
+                replyContextBar.classList.remove('hidden');
+                userInput.focus();
+                return;
+            }
 
-                funFactBtn.addEventListener('click', async () => { 
-                    const startButton = document.getElementById('start-chat-btn-container');
-                    if(startButton) startButton.remove();
-                    if (chatBox.classList.contains('initial-center')) {
-                        chatBox.classList.remove('initial-center');
-                        chatBox.innerHTML = '';
-                    }
-                    addChatMessage("Let me check my archives for a fun fact...", 'user');
-                    const prompt = "Tell me a fun, interesting, or little-known fact about IIT Delhi, its history, campus, or a notable achievement. Make it sound exciting!";
-                    await getAiResponse(prompt);
-                });
-
-                chatBox.addEventListener('click', async (e) => { 
-                    const replyBtn = e.target.closest('.reply-btn');
-                    if (replyBtn) {
-                        const bubble = replyBtn.closest('.chat-bubble');
-                        replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
-                        replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
-                        replyContextBar.classList.remove('hidden');
-                        userInput.focus();
-                        return;
-                    }
-
-                    const clarificationBtn = e.target.closest('.clarification-btn');
-                    if (clarificationBtn) {
-                        const startButton = document.getElementById('start-chat-btn-container');
-                        if(startButton) startButton.remove();
-                         if (chatBox.classList.contains('initial-center')) {
-                            chatBox.classList.remove('initial-center');
-                            chatBox.innerHTML = '';
-                        }
-                        const entryNumber = clarificationBtn.dataset.entry;
-                        const student = localKnowledgeBase.find(doc => doc.type === 'Student' && doc.entryNumber === entryNumber);
-                        if (student) {
-                            addChatMessage(`Okay, you selected **${student.name}**. What would you like to know?`, 'user');
-                            await getAiResponse(`Tell me about the student: ${JSON.stringify(student)}`);
-                        }
-                    }
-                });
-
-                chatBox.addEventListener('dblclick', (e) => {
-                    const bubble = e.target.closest('.chat-bubble.ai');
-                    if (bubble && bubble.dataset.messageId) {
-                        replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
-                        replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
-                        replyContextBar.classList.remove('hidden');
-                        userInput.focus();
-                    }
-                });
-
-            } catch (error) {
-                console.error("Initialization failed:", error);
-                const loader = document.getElementById('initial-loader') || document.getElementById('chat-box');
-                if(loader) {
-                    loader.innerHTML = `<p class="text-red-500 font-bold p-4 text-center">Error: Could not initialize the application. Please check the console.</p>`;
+            const clarificationBtn = e.target.closest('.clarification-btn');
+            if (clarificationBtn) {
+                const startButton = document.getElementById('start-chat-btn-container');
+                if(startButton) startButton.remove();
+                if (chatBox.classList.contains('initial-center')) {
+                    chatBox.classList.remove('initial-center');
+                    chatBox.innerHTML = '';
+                }
+                const entryNumber = clarificationBtn.dataset.entry;
+                const student = localKnowledgeBase.find(doc => doc.type === 'Student' && doc.entryNumber === entryNumber);
+                if (student) {
+                    addChatMessage(`Okay, you selected **${student.name}**. What would you like to know?`, 'user');
+                    await getAiResponse(`Tell me about the student: ${JSON.stringify(student)}`);
                 }
             }
+        });
+
+        chatBox.addEventListener('dblclick', (e) => {
+            const bubble = e.target.closest('.chat-bubble.ai');
+            if (bubble && bubble.dataset.messageId) {
+                replyingToMessage = { id: bubble.dataset.messageId, text: bubble.dataset.messageText };
+                replyText.textContent = `"${replyingToMessage.text.substring(0, 50)}..."`;
+                replyContextBar.classList.remove('hidden');
+                userInput.focus();
+            }
+        });
+
+    } catch (error) {
+        console.error("Initialization failed");
+        const loader = document.getElementById('initial-loader') || document.getElementById('chat-box');
+        if(loader) {
+            loader.innerHTML = `
+                <p class="text-red-500 font-bold p-4 text-center">
+                    System Error: Could not initialize application
+                </p>
+                <p class="text-gray-400 text-center">Please try refreshing the page</p>
+                <p class="text-gray-400 text-center">If the problem persists, contact support</p>
+            `;
         }
+    }
+}
 
 
         main();
+
 
 
 
