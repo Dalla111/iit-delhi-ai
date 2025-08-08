@@ -1,8 +1,0 @@
-{
-  "name": "iitd-ai-chatbot-secure",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "firebase": "^10.12.2"
-  }
-}
