@@ -159,23 +159,27 @@ function setAppHeight() {
         };
         const removeTypingIndicator = () => { document.getElementById('typing-indicator-wrapper')?.remove(); };
 
-        const handleSend = async () => {
-            const userQuery = userInput.value.trim();
-            if (!userQuery) return;
+        const handleSend = async (queryOverride) => {
+    const userQuery = queryOverride || userInput.value.trim();
+    if (!userQuery) return;
 
-            const startButtonContainer = document.getElementById('start-chat-btn-container');
-            if (startButtonContainer) startButtonContainer.remove();
+    const startButtonContainer = document.getElementById('start-chat-btn-container');
+    if (startButtonContainer) startButtonContainer.remove();
 
-            if (chatBox.classList.contains('initial-center')) {
-                chatBox.classList.remove('initial-center');
-                chatBox.innerHTML = ''; // Clear welcome message
-            }
+    if (chatBox.classList.contains('initial-center')) {
+        chatBox.classList.remove('initial-center');
+        chatBox.innerHTML = ''; // Clear welcome message
+    }
 
-            addChatMessage(userQuery, 'user');
-            conversationHistory.push({role: 'user', text: userQuery});
-            userInput.value = '';
-            await getAiResponse(userQuery);
-        };
+    addChatMessage(userQuery, 'user');
+    conversationHistory.push({role: 'user', text: userQuery});
+    
+    if (!queryOverride) {
+        userInput.value = '';
+    }
+    
+    await getAiResponse(userQuery);
+};
         
 // Define conversation context at the top level with other variables
 let conversationContext = {
@@ -183,8 +187,68 @@ let conversationContext = {
     pendingField: null,
     collectedData: {}
 };
+// PASTE THIS ENTIRE NEW FUNCTION INTO YOUR SCRIPT
+async function processCommand(commandString) {
+    removeTypingIndicator(); // Ensure no typing indicator is left
+    const parts = commandString.split('::');
+    const action = parts[1];
+    const url = parts[2];
+    const responseOrData = parts[3];
+
+    if (action === 'open_url') {
+        addChatMessage(responseOrData, 'ai');
+        window.open(url, '_blank');
+    } else if (action === 'open_url_login') {
+        const data = JSON.parse(responseOrData);
+        addChatMessage(data.response, 'ai');
+        window.open(url, '_blank');
+        
+        const username = sessionStorage.getItem('tempUsername');
+        const password = sessionStorage.getItem('tempPassword');
+
+        if (data.loginScript && username && password) {
+            let personalizedScript = data.loginScript
+                .replace('YOUR_USERNAME_HERE', username)
+                .replace('YOUR_PASSWORD_HERE', password);
+            
+            addChatMessage("To complete the auto-login, please do the following:\n\n1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.\n2. Create a new script and paste the code below.\n\nThis will securely log you in every time!", 'ai');
+            
+            const scriptContainer = document.createElement('div');
+            scriptContainer.className = 'pl-12'; // Align with message bubble
+            const scriptBlock = document.createElement('pre');
+            scriptBlock.className = 'bg-gray-800 text-white p-4 rounded-md overflow-x-auto text-sm';
+            scriptBlock.textContent = personalizedScript;
+            scriptContainer.appendChild(scriptBlock);
+            chatBox.appendChild(scriptContainer);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }
+}
 
 const getAiResponse = async (userQuery) => {
+  if (conversationContext.currentIntent === 'get_credentials') {
+        const [username, password] = userQuery.split(/,|\s+/).filter(Boolean);
+        if (username && password) {
+            sessionStorage.setItem('tempUsername', username);
+            sessionStorage.setItem('tempPassword', password);
+            
+            const originalData = conversationContext.collectedData;
+            addChatMessage("Great! I've got your credentials for this session. Let's try opening that again.", 'ai');
+            const command = `COMMAND::open_url_login::${originalData.url}::${JSON.stringify(originalData)}`;
+            conversationContext = {};
+            await processCommand(command);
+            
+            sendBtn.disabled = false;
+            userInput.disabled = false;
+            userInput.focus();
+            return; 
+        } else {
+            addChatMessage("I didn't seem to get that right. Please provide your username and password separated by a space or comma.", 'ai');
+            removeTypingIndicator();
+            sendBtn.disabled = false; userInput.disabled = false; userInput.focus();
+            return;
+        }
+    }
     sendBtn.disabled = true;
     userInput.disabled = true;
     showTypingIndicator();
@@ -330,22 +394,69 @@ const getAiResponse = async (userQuery) => {
             ---
             **User's Question:** "${userQuery}"`;
 
-    } else { 
-        const generalQuery = query(collection(generalDb, "knowledge_base"), limit(50));
-        const snapshot = await getDocs(generalQuery);
-        const docs = snapshot.docs.map(doc => ({type: 'Knowledge', ...doc.data()}));
-        context = JSON.stringify(docs);
-        
-        // This new prompt instructs the AI on how to handle any link it finds.
-        finalPrompt = `Answer the user's general question based ONLY on the provided context.
-            **Special Instructions:** If the most relevant item in the context has an "action" field of "open_url", you MUST format your response as a special command: 'COMMAND::open_url::{url}::{response}'. 
-            For example: 'COMMAND::open_url::https://moodle.iitd.ac.in/::Sure, opening Moodle for you.'
-            For all other questions, provide a normal, helpful answer.
-            
-            **Context:** ${context} 
-            --- 
-            **User's Question:** "${userQuery}"`;
+    } // --- REPLACE IT WITH THIS NEW 'else' BLOCK ---
+} else { // General question
+    let searchKeyword;
+    const lowerCaseQuery = userQuery.toLowerCase();
+
+    if (lowerCaseQuery.includes("new moodle")) {
+        searchKeyword = "new moodle";
+    } else if (lowerCaseQuery.includes("moodle")) {
+        searchKeyword = "moodle";
+    } else {
+        searchKeyword = lowerCaseQuery.split(' ').find(k => k.length > 3) || lowerCaseQuery;
     }
+
+    const generalQuery = query(collection(generalDb, "knowledge_base"), where("keywords", "array-contains", searchKeyword), limit(1));
+    const snapshot = await getDocs(generalQuery);
+    let contextData = {};
+    if (!snapshot.empty) {
+        contextData = snapshot.docs[0].data();
+    }
+    
+    removeTypingIndicator();
+
+    if (contextData.action === 'open_url') {
+        const storedUsername = sessionStorage.getItem('tempUsername');
+
+        if (contextData.loginScript && !storedUsername) {
+            addChatMessage(`${contextData.response} I can also help you log in automatically. For this session, would you like to provide your Kerberos ID and password?`, 'ai', {
+                actions: [
+                    { label: "Yes, help me log in", query: `login to ${contextData.topic}` },
+                    { label: "No, just open the page", query: `open ${contextData.topic} without login` }
+                ]
+            });
+        } else {
+            await processCommand(`COMMAND::open_url_login::${contextData.url}::${JSON.stringify(contextData)}`);
+        }
+        
+    } else if (userQuery.startsWith('login to')) {
+        const topic = userQuery.replace('login to ', '').trim();
+        const q = query(collection(generalDb, "knowledge_base"), where("topic", "==", topic), limit(1));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+            contextData = snapshot.docs[0].data();
+            conversationContext = { currentIntent: 'get_credentials', collectedData: contextData };
+            addChatMessage("Please type your username and password, separated by a space. I'll only remember it for this session.\n\n**Warning:** This is for demonstration. Never share passwords with a real chatbot.", 'ai');
+        }
+
+    } else if (userQuery.endsWith('without login')) {
+        const topic = userQuery.replace(' without login', '').replace('open ', '').trim();
+        const q = query(collection(generalDb, "knowledge_base"), where("topic", "==", topic), limit(1));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+            contextData = snapshot.docs[0].data();
+            await processCommand(`COMMAND::open_url::${contextData.url}::${contextData.response}`);
+        }
+    } else {
+        // This is the fallback that preserves your original general question logic
+        const docs = (await getDocs(query(collection(generalDb, "knowledge_base"), limit(50)))).docs.map(doc => ({type: 'Knowledge', ...doc.data()}));
+        const context = JSON.stringify(docs);
+        finalPrompt = `Answer the user's question: "${userQuery}". Use this context if relevant: ${context}. If the context is not relevant, say you don't know.`;
+        const aiResponse = await callGemini(finalPrompt);
+        addChatMessage(aiResponse || "I'm not sure how to help with that, but I'm learning!", 'ai');
+    }
+}
     
     const fullPrompt = `${replyContext}${finalPrompt} Your response should be witty, helpful, and use Markdown and emojis.`;
     const aiResponse = await callGemini(fullPrompt);
@@ -499,7 +610,10 @@ async function main() {
             }
 
             const clarificationBtn = e.target.closest('.clarification-btn');
-            if (clarificationBtn) {
+    if (clarificationBtn && clarificationBtn.dataset.query) {
+        // This is NEW: handles login buttons
+        handleSend(clarificationBtn.dataset.query);
+    } else if (clarificationBtn) {
                 const startButton = document.getElementById('start-chat-btn-container');
                 if(startButton) startButton.remove();
                 if (chatBox.classList.contains('initial-center')) {
@@ -542,3 +656,4 @@ async function main() {
 
 
         main();
+
