@@ -177,7 +177,7 @@ function setAppHeight() {
             await getAiResponse(userQuery);
         };
         
-        // Define conversation context at the top level with other variables
+// Define conversation context at the top level with other variables
 let conversationContext = {
     currentIntent: null,
     pendingField: null,
@@ -336,7 +336,12 @@ const getAiResponse = async (userQuery) => {
         const docs = snapshot.docs.map(doc => ({type: 'Knowledge', ...doc.data()}));
         context = JSON.stringify(docs);
         
+        // This new prompt instructs the AI on how to handle any link it finds.
         finalPrompt = `Answer the user's general question based ONLY on the provided context.
+            **Special Instructions:** If the most relevant item in the context has an "action" field of "open_url", you MUST format your response as a special command: 'COMMAND::open_url::{url}::{response}'. 
+            For example: 'COMMAND::open_url::https://moodle.iitd.ac.in/::Sure, opening Moodle for you.'
+            For all other questions, provide a normal, helpful answer.
+            
             **Context:** ${context} 
             --- 
             **User's Question:** "${userQuery}"`;
@@ -346,7 +351,26 @@ const getAiResponse = async (userQuery) => {
     const aiResponse = await callGemini(fullPrompt);
     removeTypingIndicator();
 
-    if (aiResponse && aiResponse.startsWith("CLARIFY:")) {
+    // This new logic checks for the special "COMMAND::" prefix.
+    if (aiResponse && aiResponse.startsWith("COMMAND::")) {
+        const parts = aiResponse.split('::');
+        // Expected format: ['COMMAND', 'action_type', 'url', 'text_response']
+        const actionType = parts[1];
+        const url = parts[2];
+        const textResponse = parts[3];
+
+        if (actionType === 'open_url' && url) {
+            // 1. Display the friendly message from the database in the chat.
+            addChatMessage(textResponse || "Opening now...", 'ai');
+            conversationHistory.push({role: 'ai', text: textResponse});
+            
+            // 2. Open the URL from the database in a new browser tab.
+            window.open(url, '_blank');
+        } else {
+            // Fallback for a malformed command.
+            addChatMessage("I understood the command but couldn't execute it properly.", 'ai');
+        }
+    } else if (aiResponse && aiResponse.startsWith("CLARIFY:")) {
         try {
             const jsonStr = aiResponse.substring(8);
             const students = JSON.parse(jsonStr);
@@ -365,6 +389,7 @@ const getAiResponse = async (userQuery) => {
         addChatMessage(aiResponse || "Sorry, I couldn't get a response.", 'ai');
         conversationHistory.push({role: 'ai', text: aiResponse});
     }
+
 
     if (replyingToMessage) {
         replyingToMessage = null;
@@ -517,12 +542,4 @@ async function main() {
 
 
         main();
-
-
-
-
-
-
-
-
 
