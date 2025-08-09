@@ -394,7 +394,6 @@ const getAiResponse = async (userQuery) => {
             ---
             **User's Question:** "${userQuery}"`;
 
-    } // --- REPLACE IT WITH THIS NEW 'else' BLOCK ---
 } else { // General question
     let searchKeyword;
     const lowerCaseQuery = userQuery.toLowerCase();
@@ -656,4 +655,5 @@ async function main() {
 
 
         main();
+
 
